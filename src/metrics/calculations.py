@@ -11,11 +11,9 @@ from scipy import stats
 def currency_oil_beta(brent: pd.DataFrame, kzt: pd.DataFrame, window_months: int = None) -> pd.DataFrame:
     """
     Rolling regression: KZT/USD ~ Brent
-    Beta > 0 means KZT weakens (more KZT per USD) as Brent rises — counterintuitive.
-    Actually expect negative beta: higher Brent → stronger KZT → fewer KZT per USD.
+    Expect negative beta: higher Brent → stronger KZT → fewer KZT per USD.
     Measures how tightly FX policy tracks oil revenue.
     """
-    # Resample Brent to monthly
     brent_m = (
         brent.set_index("date")["brent_usd"]
         .resample("MS").mean()
@@ -81,3 +79,40 @@ def fiscal_stress(fiscal: pd.DataFrame, brent_spot: float) -> dict:
         "buffer": round(buffer, 1),
         "year": int(latest["year"])
     }
+
+
+def urals_revenue_impact(urals_df: pd.DataFrame, kz_export_kbd: float = 1400.0) -> pd.DataFrame:
+    """
+    Quantify the hidden revenue loss from the Urals discount vs Brent.
+    KZ exports ~1,400 kbd through CPC (67 MT/yr × 7.3 bbl/MT ÷ 365), priced off Urals.
+    A $1/bbl wider spread costs KZ ~$0.51B/yr.
+    """
+    df = urals_df.copy()
+    df["daily_loss_mn_usd"] = abs(df["spread"]) * kz_export_kbd * 1000 / 1e6
+    df["annual_loss_bn_usd"] = (df["daily_loss_mn_usd"] * 365 / 1e3).round(2)
+    return df
+
+
+def tengiz_capacity_crunch(tracker_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Model the developing capacity crunch as Tengiz FGP volumes come online.
+    Negative surplus = KZ production exceeds CPC allocation → stranded barrels.
+    """
+    df = tracker_df.copy()
+    df["cpc_surplus_kbd"] = df["cpc_capacity_kbd"] - df["kz_cpc_bound_kbd"]
+    df["is_constrained"] = df["cpc_surplus_kbd"] < 0
+    df["stranded_kbd"] = df["cpc_surplus_kbd"].clip(upper=0).abs()
+    return df
+
+
+def wti_brent_spread(brent: pd.DataFrame, wti: pd.DataFrame) -> pd.DataFrame:
+    """
+    Live WTI-Brent spread. Structural negative (WTI discount) reflects
+    landlocked US supply vs waterborne Brent. Traders watch this for
+    global crude quality and logistics signals.
+    """
+    brent_m = brent.set_index("date")["brent_usd"].resample("MS").mean().reset_index()
+    wti_m = wti.set_index("date")["wti_usd"].resample("MS").mean().reset_index()
+    merged = pd.merge(brent_m, wti_m, on="date").dropna()
+    merged["spread"] = merged["wti_usd"] - merged["brent_usd"]
+    return merged

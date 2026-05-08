@@ -1,6 +1,6 @@
 """
 fetch/fred_live.py
-Pulls Brent and KZT/USD from FRED JSON API.
+Pulls Brent, WTI, and KZT/USD from FRED JSON API.
 Falls back to bundled seed data if request fails.
 """
 
@@ -23,10 +23,26 @@ BRENT_SEED = [
     {"date": "2022-01-01", "brent_usd": 99.0},
     {"date": "2023-01-01", "brent_usd": 82.2},
     {"date": "2024-01-01", "brent_usd": 80.1},
-    {"date": "2025-01-01", "brent_usd": 74.5},
-    {"date": "2026-01-01", "brent_usd": 70.3},
+    {"date": "2025-01-01", "brent_usd": 76.4},
+    {"date": "2025-04-01", "brent_usd": 67.8},
 ]
 
+WTI_SEED = [
+    {"date": "2015-01-01", "wti_usd": 48.7},
+    {"date": "2016-01-01", "wti_usd": 42.2},
+    {"date": "2017-01-01", "wti_usd": 50.9},
+    {"date": "2018-01-01", "wti_usd": 65.2},
+    {"date": "2019-01-01", "wti_usd": 57.0},
+    {"date": "2020-01-01", "wti_usd": 39.7},
+    {"date": "2021-01-01", "wti_usd": 68.0},
+    {"date": "2022-01-01", "wti_usd": 94.5},
+    {"date": "2023-01-01", "wti_usd": 77.6},
+    {"date": "2024-01-01", "wti_usd": 76.9},
+    {"date": "2025-01-01", "wti_usd": 73.8},
+    {"date": "2025-04-01", "wti_usd": 63.9},
+]
+
+# DEXKZUS: U.S. / Kazakhstan Foreign Exchange Rate (KZT per USD), monthly
 KZT_SEED = [
     {"date": "2015-01-01", "kzt_per_usd": 188.0},
     {"date": "2016-01-01", "kzt_per_usd": 342.0},
@@ -38,8 +54,8 @@ KZT_SEED = [
     {"date": "2022-01-01", "kzt_per_usd": 472.0},
     {"date": "2023-01-01", "kzt_per_usd": 462.0},
     {"date": "2024-01-01", "kzt_per_usd": 449.0},
-    {"date": "2025-01-01", "kzt_per_usd": 502.0},
-    {"date": "2026-01-01", "kzt_per_usd": 506.0},
+    {"date": "2025-01-01", "kzt_per_usd": 511.0},
+    {"date": "2025-04-01", "kzt_per_usd": 516.0},
 ]
 
 
@@ -75,9 +91,22 @@ def get_brent(start: str = "2015-01-01") -> pd.DataFrame:
     return pd.DataFrame(BRENT_SEED).assign(date=lambda x: pd.to_datetime(x["date"]))
 
 
+def get_wti(start: str = "2015-01-01") -> pd.DataFrame:
+    cache_path = CACHE_DIR / "wti_cached.csv"
+    df = _fetch_fred_json("DCOILWTICO", start)
+    if df is not None and len(df) > 10:
+        df.columns = ["date", "wti_usd"]
+        df.to_csv(cache_path, index=False)
+        return df
+    if cache_path.exists():
+        return pd.read_csv(cache_path, parse_dates=["date"])
+    return pd.DataFrame(WTI_SEED).assign(date=lambda x: pd.to_datetime(x["date"]))
+
+
 def get_kzt(start: str = "2015-01-01") -> pd.DataFrame:
     cache_path = CACHE_DIR / "kzt_cached.csv"
-    df = _fetch_fred_json("KAZAKHSTANM", start)
+    # DEXKZUS: U.S./Kazakhstan spot rate (KZT per USD), monthly
+    df = _fetch_fred_json("DEXKZUS", start)
     if df is not None and len(df) > 10:
         df.columns = ["date", "kzt_per_usd"]
         df.to_csv(cache_path, index=False)
