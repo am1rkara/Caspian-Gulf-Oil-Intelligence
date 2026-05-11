@@ -118,6 +118,94 @@ def cpc_utilization(kz_production_kbpd: float) -> dict:
     }
 
 
+def currency_oil_beta(
+    brent_hist: pd.DataFrame,
+    kzt_hist: pd.DataFrame,
+    window_months: int = 12,
+) -> pd.DataFrame:
+    """Alias for kzt_brent_beta — rolling OLS beta of KZT/USD on Brent."""
+    return kzt_brent_beta(brent_hist, kzt_hist, window_months)
+
+
+def cpc_gap(cpc: pd.DataFrame) -> pd.DataFrame:
+    """Pass-through: get_cpc() already computes gap and revenue-loss columns."""
+    return cpc.copy()
+
+
+def grid_dependency_trend(power: pd.DataFrame) -> dict:
+    """Summary stats for the power-grid Russia dependency narrative."""
+    if power.empty:
+        return {}
+    latest = power.iloc[-1]
+    earliest = power.iloc[0]
+    return {
+        "latest_coal_pct":         latest["coal_pct"],
+        "latest_renewables_pct":   latest["renewables_pct"],
+        "latest_russia_import_twh": latest["russia_import_twh"],
+        "import_growth":           round(
+            latest["russia_import_twh"] - earliest["russia_import_twh"], 2
+        ),
+    }
+
+
+def fiscal_stress(fiscal: pd.DataFrame, brent_spot: float) -> dict:
+    """Return breakeven and buffer vs current Brent for the latest fiscal year."""
+    latest = fiscal.iloc[-1]
+    breakeven = float(latest["breakeven_usd"])
+    return {
+        "year":       int(latest["year"]),
+        "breakeven":  breakeven,
+        "brent_spot": round(brent_spot, 2),
+        "buffer":     round(brent_spot - breakeven, 2),
+    }
+
+
+_KZ_CPC_EXPORT_KBPD = 1_400  # KZ volumes routing through CPC
+
+
+def urals_revenue_impact(urals: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compute implied annual KZ revenue loss from the Urals–Brent discount.
+    loss = |spread| × 1,400 kbd × 1,000 bbl/kbd × 365 days / 1e9  → $B/yr
+    """
+    df = urals.copy()
+    df["annual_loss_bn_usd"] = (
+        df["spread"].abs() * _KZ_CPC_EXPORT_KBPD * 1_000 * 365 / 1e9
+    ).round(2)
+    return df
+
+
+_CPC_CAPACITY_KBD = 1_339   # 67 MT/yr × 7.3 bbl/MT ÷ 365
+_CPC_SHARE        = 0.65    # share of KZ production routing through CPC
+
+
+def tengiz_capacity_crunch(tengiz: pd.DataFrame) -> pd.DataFrame:
+    """
+    Enrich the raw Tengiz tracker with CPC utilisation and constraint metrics.
+    """
+    df = tengiz.copy()
+    df["kz_cpc_bound_kbd"] = (df["kz_total_kbd"] * _CPC_SHARE).round(0)
+    df["cpc_surplus_kbd"]  = (_CPC_CAPACITY_KBD - df["kz_cpc_bound_kbd"]).round(0)
+    df["is_constrained"]   = df["kz_cpc_bound_kbd"] > _CPC_CAPACITY_KBD
+    df["stranded_kbd"]     = (df["kz_cpc_bound_kbd"] - _CPC_CAPACITY_KBD).clip(lower=0).round(0)
+    return df
+
+
+def wti_brent_spread(brent: pd.DataFrame, wti: pd.DataFrame) -> pd.DataFrame:
+    """
+    Monthly average WTI–Brent spread ($/bbl).
+    Returns DataFrame(date, spread) or empty DataFrame on failure.
+    """
+    try:
+        b = brent.set_index("date")["brent_usd"].resample("MS").mean().reset_index()
+        w = wti.set_index("date")["wti_usd"].resample("MS").mean().reset_index()
+        merged = pd.merge(b, w, on="date").dropna()
+        merged["spread"] = (merged["wti_usd"] - merged["brent_usd"]).round(2)
+        return merged[["date", "spread"]].sort_values("date").reset_index(drop=True)
+    except Exception:
+        return pd.DataFrame(columns=["date", "spread"])
+
+
 def transmission_chain(brent: float, kz_prod_kbpd: float) -> dict:
     """
     Quantify the Gulf → KZ transmission chain with current numbers.
