@@ -1,5 +1,28 @@
+# Environment
 .env
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Streamlit
+.streamlit/
+
+# Data cache
+data/processed/
