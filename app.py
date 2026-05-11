@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from src.style import TERMINAL_CSS
 from src.nav import render_sidebar
 from src.data.market import get_prices
+from src.metrics.hormuz import get_hormuz_status
 from src.data.imf import IMF_BREAKEVENS_USD, OPEC_QUOTAS_KBPD, URALS_DISCOUNT
 from src.metrics.calculations import urals_proxy, brent_wti_spread, cpc_utilization, fiscal_nowcast
 from src.feeds.rss import get_articles
@@ -212,34 +213,7 @@ fiscal   = fiscal_nowcast(brent, kz_prod, IMF_BREAKEVENS_USD["Kazakhstan"])
 cpc      = cpc_utilization(kz_prod)
 
 
-def _hormuz_status(arts: list) -> dict:
-    """
-    Derive Hormuz tension level from recent RSS articles.
-    Scans titles+summaries for geopolitical keywords; counts hits in last 7 days.
-    Returns level, accent color, matched article list, and signal count.
-    """
-    from datetime import timedelta
-    SCAN = ["hormuz", "iran", "irgc", "tanker seized", "strait",
-            "blockade", "escalat", "gulf tension", "oil attack",
-            "persian gulf", "naval", "drone attack"]
-    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=7)
-    hits = []
-    for a in arts:
-        text = (a.get("title", "") + " " + a.get("summary", "")).lower()
-        pub  = a.get("published_dt")
-        if any(kw in text for kw in SCAN) and (pub is None or pub > cutoff):
-            hits.append(a)
-    n = len(hits)
-    if n >= 6:
-        level, color, dot = "HEIGHTENED", "#f87171", "🔴"
-    elif n >= 3:
-        level, color, dot = "ELEVATED",   "#f59e0b", "🟡"
-    else:
-        level, color, dot = "NORMAL",     "#4ade80", "🟢"
-    return {"level": level, "color": color, "dot": dot,
-            "articles": hits[:3], "count": n}
-
-hormuz = _hormuz_status(articles)
+hormuz = get_hormuz_status(articles)
 
 # ── Header (padded) ────────────────────────────────────────────────────────────
 top_l, top_r = st.columns([5, 1])
@@ -251,6 +225,43 @@ with top_r:
     st.markdown(f"<div class='padded muted' style='text-align:right;margin-top:12px'>"
                 f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</div>",
                 unsafe_allow_html=True)
+
+# ── Summary Card ──────────────────────────────────────────────────────────────
+_hcol  = hormuz["color"]
+_hlvl  = hormuz["level"].lower()
+_disc  = URALS_DISCOUNT["post_2022"]
+_fbuf  = fiscal["buffer_bn"]
+_fbuf_cls  = "rgba(74,222,128,0.12)" if _fbuf >= 0 else "rgba(248,113,113,0.12)"
+_fbuf_tcls = "#4ade80" if _fbuf >= 0 else "#f87171"
+st.markdown(f"""
+<div class='padded' style='margin-bottom:4px'>
+<div style='background:#1c1f26;border:1px solid #2d3139;border-radius:4px;
+padding:18px 22px;'>
+<p style='font-size:10px;letter-spacing:0.08em;text-transform:uppercase;
+color:#8b8fa8;margin:0 0 10px'>About this terminal</p>
+<p style='font-size:14px;line-height:1.7;color:#c8ccd8;margin:0 0 10px'>
+Kazakhstan earns ~80% of its oil export revenue through a single Russian-controlled
+pipeline — the CPC corridor to Novorossiysk. When the Strait of Hormuz tightens,
+<b style='color:#e8eaf0'>Brent spikes and KZ fiscal revenue improves</b>, but structural limits cap the upside:
+CPC exports price off Urals (currently –${_disc:.0f}/bbl vs Brent), Russia has blocked pipeline
+expansion, and route concentration creates a geopolitical vulnerability that is
+<b style='color:#e8eaf0'>structural, not episodic.</b>
+</p>
+<p style='font-size:14px;line-height:1.7;color:#c8ccd8;margin:0 0 14px'>
+This terminal tracks that transmission mechanism in real time — Gulf chokepoint risk,
+OPEC+ compliance, CPC throughput, KZT fair value, and the fiscal buffer between
+Kazakhstan and a revenue crisis.
+</p>
+<div style='border-top:1px solid #2d3139;padding-top:12px;display:flex;flex-wrap:wrap;gap:8px;font-size:12px'>
+<span style='padding:4px 10px;border-radius:4px;background:rgba({"74,222,128" if hormuz["level"]=="NORMAL" else "245,158,11" if hormuz["level"]=="ELEVATED" else "248,113,113"},0.12);
+color:{_hcol};font-weight:500'>Hormuz: {_hlvl}</span>
+<span style='padding:4px 10px;border-radius:4px;background:rgba(248,113,113,0.12);color:#f87171;font-weight:500'>CPC: Russia-controlled</span>
+<span style='padding:4px 10px;border-radius:4px;background:rgba(245,158,11,0.12);color:#f59e0b;font-weight:500'>Urals discount: –${_disc:.0f}/bbl</span>
+<span style='padding:4px 10px;border-radius:4px;background:{_fbuf_cls};color:{_fbuf_tcls};font-weight:500'>Fiscal buffer: ${_fbuf:+.1f}B/yr</span>
+<span style='padding:4px 10px;border-radius:4px;background:#1a1d24;color:#8b8fa8'>Brent ${brent:.0f} · KZT {kzt:.0f}</span>
+</div>
+</div></div>
+""", unsafe_allow_html=True)
 
 # ── Ticker (padded) ────────────────────────────────────────────────────────────
 sp_cls     = "neg" if spread < 0 else "pos"

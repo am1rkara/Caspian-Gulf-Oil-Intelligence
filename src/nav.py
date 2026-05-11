@@ -48,6 +48,8 @@ def render_sidebar():
         st.page_link("pages/1_News_Intelligence.py",       label="News Intelligence")
         st.page_link("pages/2_Gulf_Quant_Panel.py",        label="Gulf Markets")
         st.page_link("pages/3_Central_Asia_Panel.py",      label="Central Asia")
+        st.page_link("pages/4_KZT_Valuation.py",           label="KZT Valuation")
+        st.page_link("pages/5_Hormuz_Decomposition.py",    label="Hormuz Decomposition")
         st.markdown(
             "<hr style='border:none;border-top:1px solid #1e2128;margin:14px 0 10px'>",
             unsafe_allow_html=True,

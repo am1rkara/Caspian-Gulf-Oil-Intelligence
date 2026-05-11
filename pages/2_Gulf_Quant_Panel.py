@@ -76,7 +76,9 @@ if prices.get("data_stale"):
 
 # ── KPI Row ────────────────────────────────────────────────────────────────────
 k1, k2, k3, k4, k5 = st.columns(5)
-with k1: st.markdown(mc("Brent Spot", f"${brent:.2f}"), unsafe_allow_html=True)
+with k1:
+    st.markdown(mc("Brent Spot", f"${brent:.2f}"), unsafe_allow_html=True)
+    st.page_link("pages/5_Hormuz_Decomposition.py", label="→ Brent spike decomposition")
 with k2: st.markdown(mc("WTI Spot",   f"${wti:.2f}"),   unsafe_allow_html=True)
 with k3:
     cls = "neg" if spread < 0 else "pos"

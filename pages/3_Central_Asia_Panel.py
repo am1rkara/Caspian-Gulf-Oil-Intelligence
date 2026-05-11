@@ -93,6 +93,7 @@ if prices.get("data_stale"):
 k1, k2, k3, k4 = st.columns(4)
 with k1:
     st.markdown(mc("KZT / USD", f"{kzt:.0f}"), unsafe_allow_html=True)
+    st.page_link("pages/4_KZT_Valuation.py", label="→ KZT fair value model")
 with k2:
     st.markdown(
         mc("Urals Realized", f"${urals:.2f}",
