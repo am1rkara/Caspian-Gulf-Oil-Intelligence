@@ -1,6 +1,6 @@
 """
 src/style.py
-Shared terminal CSS injected into every page via st.markdown.
+Shared terminal CSS — injected into every page via st.markdown.
 """
 
 TERMINAL_CSS = """
@@ -10,31 +10,27 @@ TERMINAL_CSS = """
 *, *::before, *::after {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
 }
-html, body { background: #0e1117 !important; }
-[data-testid="stAppViewContainer"] { background: #0e1117; }
+
+/* Backgrounds */
+html, body { background: #0e1117 !important; color: #c8ccd8 !important; }
+[data-testid="stAppViewContainer"] { background: #0e1117 !important; }
 [data-testid="stSidebar"] {
     background: #0a0c10 !important;
     border-right: 1px solid #1e2128;
 }
+
+/* Content area */
 .main .block-container { padding: 1.5rem 2rem 3rem; max-width: 100%; }
+
+/* Hide Streamlit chrome */
 #MainMenu, footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none; }
 
-/* Sidebar nav — page links only */
-[data-testid="stSidebarNav"] { padding-top: 0.25rem; }
-[data-testid="stSidebarNav"] a {
-    color: #6b7280 !important;
-    font-size: 12px;
-    font-weight: 400;
-    padding: 3px 0;
-    display: block;
-    text-decoration: none !important;
+/* Ensure Streamlit native text is always readable */
+p, li, span, label, div {
+    color: inherit;
 }
-[data-testid="stSidebarNav"] a:hover { color: #e8eaf0 !important; }
-[data-testid="stSidebarNav"] a[aria-current="page"] {
-    color: #e8eaf0 !important;
-    font-weight: 600;
-}
+[data-testid="stMarkdown"] { color: #c8ccd8; }
 
 /* Metric cards */
 .mc {
@@ -68,7 +64,7 @@ html, body { background: #0e1117 !important; }
 
 /* Typography utilities */
 .dim   { color: #8b8fa8; font-size: 11px; }
-.muted { color: #555a6e; font-size: 11px; }
+.muted { color: #6b7280; font-size: 11px; }
 
 /* Section header rule */
 .sec {
@@ -109,7 +105,7 @@ a:hover { color: #60a5fa !important; }
 .t-label { color: #8b8fa8; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
 .t-val   { color: #e8eaf0; font-size: 14px; font-weight: 600; }
 
-/* News cards */
+/* News headline rows */
 .nc {
     padding: 9px 0;
     border-bottom: 1px solid #1a1d23;
@@ -118,8 +114,10 @@ a:hover { color: #60a5fa !important; }
     gap: 10px;
 }
 .nc:last-child { border-bottom: none; }
-.nc-source { color: #8b8fa8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; min-width: 72px; }
+.nc-source { color: #6b7280; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; min-width: 72px; flex-shrink: 0; }
 .nc-title  { color: #c8ccd8; font-size: 13px; flex: 1; line-height: 1.4; }
 .nc-time   { color: #555a6e; font-size: 10px; white-space: nowrap; }
+.nc-title a { color: #c8ccd8 !important; }
+.nc-title a:hover { color: #e8eaf0 !important; }
 </style>
 """

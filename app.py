@@ -10,14 +10,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv()
 
-import os
+import os, html as _html
 import time
 import yfinance as yf
 import streamlit as st
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.style import TERMINAL_CSS
+from src.nav import render_sidebar
 from src.data.market import get_prices
 from src.data.imf import IMF_BREAKEVENS_USD, OPEC_QUOTAS_KBPD, URALS_DISCOUNT
 from src.metrics.calculations import urals_proxy, brent_wti_spread, cpc_utilization, fiscal_nowcast
@@ -26,12 +27,13 @@ from src.feeds.rss import get_articles
 st.set_page_config(
     page_title="Energy Intelligence Terminal",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 st.markdown(TERMINAL_CSS, unsafe_allow_html=True)
+render_sidebar()
 st.markdown("""
 <style>
-/* Full-bleed layout: remove side padding so map can stretch edge to edge */
+/* Full-bleed layout for landing page */
 .main .block-container {
     padding-left: 0 !important;
     padding-right: 0 !important;
@@ -210,7 +212,7 @@ with top_l:
                 unsafe_allow_html=True)
 with top_r:
     st.markdown(f"<div class='padded muted' style='text-align:right;margin-top:12px'>"
-                f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}</div>",
+                f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</div>",
                 unsafe_allow_html=True)
 
 # ── Ticker (padded) ────────────────────────────────────────────────────────────
@@ -265,12 +267,12 @@ fig.update_layout(
         showlakes=False, showrivers=False,
         showcountries=True, countrycolor="#2d3139", countrywidth=0.5,
         bgcolor="#0e1117",
-        lataxis=dict(range=[12, 58]),
-        lonaxis=dict(range=[28, 88]),
+        lataxis=dict(range=[8, 60]),
+        lonaxis=dict(range=[24, 92]),
     ),
     paper_bgcolor="#0e1117",
     margin=dict(l=0, r=0, t=0, b=0),
-    height=460,
+    height=540,
     showlegend=False,
     dragmode=False,
     modebar_remove=["select2d","lasso2d","zoomIn2d","zoomOut2d",
@@ -364,8 +366,7 @@ if iso and iso in COUNTRY_META:
     </div>
     """, unsafe_allow_html=True)
 else:
-    st.markdown("<div class='map-hint'>Click a highlighted country on the map to explore.</div>",
-                unsafe_allow_html=True)
+    pass  # no instruction text — map is self-evident
 
 # ── Latest Headlines ───────────────────────────────────────────────────────────
 st.markdown("<div class='sec padded' style='margin-top:28px'>Latest Intelligence</div>",
@@ -375,10 +376,13 @@ top5 = articles[:5]
 if top5:
     rows = ""
     for a in top5:
-        pub  = a["published_dt"].strftime("%b %d %H:%M") if a.get("published_dt") else ""
+        pub   = a["published_dt"].strftime("%b %d %H:%M") if a.get("published_dt") else ""
+        link  = _html.escape(a.get("link", "#"), quote=True)
+        title = _html.escape(a["title"]).replace("[", "&#91;").replace("]", "&#93;")
+        src   = _html.escape(a["source"])
         rows += (f"<div class='nc'>"
-                 f"<span class='nc-source'>{a['source']}</span>"
-                 f"<span class='nc-title'><a href='{a.get('link','#')}' target='_blank'>{a['title']}</a></span>"
+                 f"<span class='nc-source'>{src}</span>"
+                 f"<span class='nc-title'><a href='{link}' target='_blank' rel='noopener'>{title}</a></span>"
                  f"<span class='nc-time'>{pub}</span>"
                  f"</div>")
     st.markdown(f"<div class='padded'>{rows}"
@@ -391,5 +395,5 @@ else:
 
 # ── Sidebar timestamp ──────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown(f"<div class='muted' style='margin-top:8px'>{datetime.utcnow().strftime('%H:%M UTC')}</div>",
+    st.markdown(f"<div class='muted' style='margin-top:8px'>{datetime.now(timezone.utc).strftime('%H:%M UTC')}</div>",
                 unsafe_allow_html=True)
