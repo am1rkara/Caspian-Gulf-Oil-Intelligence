@@ -41,8 +41,7 @@ ELASTICITY          = 6.0    # $/bbl per mb/day disrupted (EIA/IMF midpoint $5�
 SPR_RELEASE_MBPD    = 0.19   # ~17.5 mb released Mar–May 2026 ≈ 0.19 mb/day annualised
 US_PROD_OFFSET_MBPD = 0.5    # EIA record 2025 output, +0.5 mb/day vs 2024 baseline
 INDIA_DEMAND_OFFSET = -1.5   # Qualitative: Modi demand signal, –$1 to –$2, midpoint –$1.5
-SEASONAL_BACKW      = 1.5    # Normal seasonal backwardation ($/bbl), pre-crisis baseline
-WAR_PREMIUM_FALLBACK_FRAC = 0.33  # Fallback if forward curve unavailable
+SEASONAL_BACKW      = 1.5    # Normal seasonal backwardation ($/bbl) — used in cross-check only
 
 # ── Data loaders ───────────────────────────────────────────────────────────────
 @st.cache_data(ttl=3600)
@@ -72,21 +71,25 @@ def compute_baseline(brent_df: pd.DataFrame) -> tuple[float, str]:
     return float(fallback), "12-month trailing avg (Oct–Dec 2025 not in dataset)"
 
 
-def compute_war_premium(live_brent: float, total_spike: float) -> tuple[float, str]:
-    """Try to use futures-curve backwardation; fall back to % of spike."""
+def fetch_curve_check(live_brent: float) -> str:
+    """
+    Fetch 12m Brent forward for cross-validation only.
+    The war premium is DERIVED as a residual — the curve is not the input.
+    This avoids double-counting: backwardation is partly caused by the same
+    supply disruption already captured in the supply component.
+    """
     try:
         import yfinance as yf
-        # BZZ26.NYM = Dec 2026 Brent contract (approximate 12-month forward)
         fwd_data = yf.download("BZZ26.NYM", period="5d", progress=False)
         if fwd_data.empty:
-            raise ValueError("No data")
+            raise ValueError("no data")
         fwd = float(fwd_data["Close"].dropna().iloc[-1])
-        backwardation = live_brent - fwd
-        premium = max(0.0, backwardation - SEASONAL_BACKW)
-        return premium, f"prompt–12m backwardation ({live_brent:.1f}–{fwd:.1f}) minus {SEASONAL_BACKW} seasonal baseline"
+        excess = (live_brent - fwd) - SEASONAL_BACKW
+        return (f"Futures curve cross-check: prompt–12m = ${live_brent:.1f}–${fwd:.1f} = "
+                f"${live_brent-fwd:.1f} backwardation, "
+                f"${excess:.1f} above ${SEASONAL_BACKW} seasonal baseline.")
     except Exception:
-        premium = max(0.0, total_spike * WAR_PREMIUM_FALLBACK_FRAC)
-        return premium, f"estimated at {WAR_PREMIUM_FALLBACK_FRAC*100:.0f}% of total spike (forward curve unavailable)"
+        return "Futures curve cross-check: contract unavailable."
 
 
 prices       = load_live()
@@ -164,35 +167,33 @@ st.markdown(
 )
 
 # ── Compute components with selected scenario ──────────────────────────────────
-disruption_frac   = DISRUPTION_FRAC[scenario]
-disrupted_mbpd    = HORMUZ_DAILY_MBPD * disruption_frac
-supply_component  = disrupted_mbpd * ELASTICITY
-spr_offset        = -(SPR_RELEASE_MBPD * ELASTICITY)
-us_prod_offset    = -(US_PROD_OFFSET_MBPD * ELASTICITY)
-india_offset      = INDIA_DEMAND_OFFSET
+# War/risk premium is DERIVED as residual — not an independent input.
+# This prevents double-counting: supply disruption and futures backwardation
+# are not independent (the same supply shock that disrupts barrels also drives
+# backwardation). Using backwardation as a separate input would attribute the
+# same effect twice.
+#
+# Waterfall: supply → offsets → war premium (closes to total by construction).
+disruption_frac  = DISRUPTION_FRAC[scenario]
+disrupted_mbpd   = HORMUZ_DAILY_MBPD * disruption_frac
+supply_component = disrupted_mbpd * ELASTICITY
+spr_offset       = -(SPR_RELEASE_MBPD * ELASTICITY)
+us_prod_offset   = -(US_PROD_OFFSET_MBPD * ELASTICITY)
+india_offset     = INDIA_DEMAND_OFFSET
 
-war_premium, war_note = compute_war_premium(live_brent, total_spike)
-
-explained = supply_component + war_premium + spr_offset + us_prod_offset + india_offset
-residual  = total_spike - explained
+total_offsets = spr_offset + us_prod_offset + india_offset
+# War/risk premium absorbs everything not explained by physical factors
+war_premium   = total_spike - supply_component - total_offsets
+curve_check   = fetch_curve_check(live_brent)
 
 # ── Waterfall Chart ────────────────────────────────────────────────────────────
-labels  = ["Supply disruption", "War premium", "SPR offset",
-           "US production", "India demand", "Unexplained", "Total"]
-values  = [supply_component, war_premium, spr_offset,
-           us_prod_offset, india_offset, residual, total_spike]
+# Order: supply (pushes up) → offsets (push down) → war premium (closes) → total
+labels  = ["Supply disruption", "SPR offset", "US production",
+           "India demand", "War / risk premium", "Total"]
+values  = [supply_component, spr_offset, us_prod_offset,
+           india_offset, war_premium, total_spike]
 measure = ["relative", "relative", "relative",
-           "relative", "relative", "relative", "total"]
-
-colors = {
-    "Supply disruption": "#f87171",
-    "War premium":       "#f97316",
-    "SPR offset":        "#22d3ee",
-    "US production":     "#22d3ee",
-    "India demand":      "#22d3ee",
-    "Unexplained":       "#6b7280",
-    "Total":             "#f59e0b",
-}
+           "relative", "relative", "total"]
 
 fig_wf = go.Figure(go.Waterfall(
     orientation="v",
@@ -216,26 +217,31 @@ fig_wf.update_layout(
 )
 st.plotly_chart(fig_wf, use_container_width=True)
 
-# Summary row under chart
+# Summary cards
 c1, c2, c3 = st.columns(3)
 with c1:
     st.markdown(f"""<div class='mc'>
         <div class='mc-l'>Supply disruption</div>
         <div class='mc-v neg'>{supply_component:+.1f}</div>
-        <div class='mc-d'>{disrupted_mbpd:.1f} mb/day disrupted · {scenario}</div>
+        <div class='mc-d'>{disrupted_mbpd:.1f} mb/day · {scenario} · ${ELASTICITY:.0f}/bbl elasticity</div>
     </div>""", unsafe_allow_html=True)
 with c2:
     st.markdown(f"""<div class='mc'>
-        <div class='mc-l'>War premium</div>
-        <div class='mc-v neg'>{war_premium:+.1f}</div>
-        <div class='mc-d'>{war_note[:60]}</div>
-    </div>""", unsafe_allow_html=True)
-with c3:
-    st.markdown(f"""<div class='mc'>
         <div class='mc-l'>Demand / SPR offsets</div>
-        <div class='mc-v pos'>{(spr_offset + us_prod_offset + india_offset):+.1f}</div>
+        <div class='mc-v pos'>{total_offsets:+.1f}</div>
         <div class='mc-d'>SPR + US production + India demand</div>
     </div>""", unsafe_allow_html=True)
+with c3:
+    wp_cls = "neg" if war_premium > 0 else "pos"
+    st.markdown(f"""<div class='mc'>
+        <div class='mc-l'>War / risk premium (derived)</div>
+        <div class='mc-v {wp_cls}'>{war_premium:+.1f}</div>
+        <div class='mc-d'>Residual after physical factors</div>
+    </div>""", unsafe_allow_html=True)
+st.markdown(
+    f"<div class='muted' style='margin-top:6px'>{curve_check}</div>",
+    unsafe_allow_html=True,
+)
 
 # ── Methodology expander ────────────────────────────────────────────────────────
 with st.expander("Methodology & assumptions"):
@@ -243,23 +249,31 @@ with st.expander("Methodology & assumptions"):
 **Baseline:** {baseline_note} = **${baseline_brent:.1f}/bbl** — pre-crisis reference.
 Total spike = live Brent minus baseline = **${total_spike:+.1f}/bbl**.
 
-**Supply disruption:** EIA Hormuz baseline {HORMUZ_DAILY_MBPD:.0f} mb/day.
+**Supply disruption (modelled input):** EIA Hormuz baseline {HORMUZ_DAILY_MBPD:.0f} mb/day.
 Disruption % by status: NORMAL=0%, ELEVATED=15%, HEIGHTENED=35%.
-Price elasticity: **${ELASTICITY:.0f}/bbl per mb/day disrupted** — midpoint of EIA/IMF range ($5–8).
+Price elasticity: **${ELASTICITY:.0f}/bbl per mb/day disrupted** — bottom half of EIA/IMF range ($5–8); we use a conservative value.
 Currently modelling **{scenario}** → {disruption_frac*100:.0f}% disruption → {disrupted_mbpd:.1f} mb/day → **${supply_component:.1f}/bbl**.
 
-**War premium:** {war_note}.
-Method: Brent prompt–12m backwardation minus ${SEASONAL_BACKW:.1f}/bbl seasonal baseline.
-Source: yfinance futures curve. Result: **${war_premium:.1f}/bbl**.
+**SPR offset (modelled input):** EIA reports ~17.5 mb released Mar–May 2026 ≈ {SPR_RELEASE_MBPD:.2f} mb/day annualised.
+Applied ${ELASTICITY:.0f}/bbl elasticity → **${spr_offset:.1f}/bbl** (dampens spike).
 
-**SPR offset:** EIA reports ~17.5 mb released Mar–May 2026 ≈ {SPR_RELEASE_MBPD:.2f} mb/day annualised.
-Applied same ${ELASTICITY:.0f}/bbl elasticity → **${spr_offset:.1f}/bbl** (dampens spike).
-
-**US production:** EIA record 2025 output, estimated +{US_PROD_OFFSET_MBPD:.1f} mb/day above 2024 baseline.
+**US production (modelled input):** EIA record 2025 output, estimated +{US_PROD_OFFSET_MBPD:.1f} mb/day above 2024 baseline.
 Applied ${ELASTICITY:.0f}/bbl elasticity → **${us_prod_offset:.1f}/bbl**.
 
-**India demand:** Qualitative softening based on Modi statement and import data.
-Assigned **${india_offset:.1f}/bbl** — this is a judgment call, not a modelled figure.
+**India demand (qualitative input):** Demand softening based on Modi statement and import data.
+Assigned **${india_offset:.1f}/bbl** — judgment call, not a modelled figure, disclosed explicitly.
 
-**Residual = ${residual:.1f}/bbl** — unexplained component (positioning, sentiment, other).
+**War / risk premium (derived residual):**
+= Total spike − Supply − Offsets = ${total_spike:.1f} − ${supply_component:.1f} − (${total_offsets:.1f}) = **${war_premium:.1f}/bbl**.
+
+This is intentionally derived rather than independently estimated. Supply disruption and
+futures-curve backwardation are not independent — the same physical disruption that
+removes barrels also steepens backwardation. Using backwardation as a separate input
+would attribute the same effect twice. Deriving war premium as a residual avoids that
+double-count and forces the decomposition to close exactly.
+
+**Futures curve (cross-check only, not input):** {curve_check}
+If the cross-check backwardation is broadly consistent with the derived war premium, that is
+supporting evidence. If it diverges significantly, it flags that the supply elasticity
+assumption may need revisiting.
 """)
