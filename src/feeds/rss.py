@@ -13,19 +13,58 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 
 FEEDS = {
-    "Reuters":        "https://feeds.reuters.com/reuters/businessNews",
-    "EIA":            "https://www.eia.gov/rss/todayinenergy.xml",
-    "Arab News":      "https://www.arabnews.com/feed",
-    "RFE/RL":         "https://www.rferl.org/api/zrqostpjotiuqr",
-    "FT Energy":      "https://www.ft.com/energy?format=rss",
+    # ── General energy & markets ─────────────────────────────────────────────
+    "Reuters":          "https://feeds.reuters.com/reuters/businessNews",
+    "EIA":              "https://www.eia.gov/rss/todayinenergy.xml",
+    "FT Energy":        "https://www.ft.com/energy?format=rss",
+    "Arab News":        "https://www.arabnews.com/feed",
+    "RFE/RL":           "https://www.rferl.org/api/zrqostpjotiuqr",
+
+    # ── Price reporting agencies (PRA) ───────────────────────────────────────
+    # Argus sets physical Urals and CPC blend assessments used in real contracts.
+    # Platts sets OPEC+ benchmark grades and LNG JKM. Both are paywalled —
+    # included for completeness; will fail silently if no free RSS exists.
+    "Argus Media":      "https://www.argusmedia.com/en/rss/latest-news",
+    "S&P Platts":       "https://www.spglobal.com/commodityinsights/en/rss",
+
+    # ── Upstream project coverage ────────────────────────────────────────────
+    # Upstream Online covers Kashagan, Tengiz FGP, CPC expansions directly.
+    # Paywalled; included for completeness.
+    "Upstream Online":  "https://www.upstreamonline.com/rss.xml",
+    # Oil & Gas 360: free upstream industry news, similar coverage scope.
+    "Oil & Gas 360":    "https://www.oilandgas360.com/feed/",
+
+    # ── Primary Kazakhstan sources ───────────────────────────────────────────
+    # KMG (KazMunayGas): direct press releases on CPC throughput, production,
+    # project milestones. Only primary KZ source with a working public RSS.
+    "KMG":              "https://kmg.kz/en/press-center/press-releases/rss/",
+    # Kazenergy association publishes KZ energy policy and sector data.
+    # No public RSS found; included as aspirational — fails silently.
+    "Kazenergy":        "https://www.kazenergy.com/en/rss/",
+
+    # ── Shipping & tanker intelligence ──────────────────────────────────────
+    # Hellenic Shipping News covers tanker markets, Novorossiysk loadings,
+    # Hormuz transit, and CPC terminal disruptions — directly relevant.
+    "Hellenic Shipping":"https://www.hellenicshippingnews.com/feed/",
+
+    # ── Commodity price news ─────────────────────────────────────────────────
+    "OilPrice.com":     "https://oilprice.com/rss/main",
 }
 
 KEYWORDS = [
-    "Kazakhstan", "CPC", "KazMunayGas", "Tengiz", "Hormuz",
-    "OPEC", "Urals", "Gulf", "Central Asia", "Brent", "tanker",
-    "Novorossiysk", "Kashagan", "Saudi", "UAE", "crude oil",
-    "Uzbekistan", "Caspian", "oil production", "energy", "LNG",
-    "pipeline", "refinery", "barrel", "petroleum",
+    # Kazakhstan-specific
+    "Kazakhstan", "KazMunayGas", "KMG", "Tengiz", "Kashagan", "CPC",
+    "Kazenergy", "Novorossiysk", "Caspian", "KZT", "Astana", "Atyrau",
+    "TengizChevroil", "FGP", "Karachaganak",
+    # Gulf / MENA
+    "OPEC", "Saudi", "UAE", "Iraq", "Kuwait", "Hormuz", "Gulf",
+    "Aramco", "ADNOC", "tanker", "LNG",
+    # Prices / grades
+    "Urals", "Brent", "WTI", "crude oil", "CPC blend", "Platts", "Argus",
+    # Infrastructure
+    "pipeline", "CPC pipeline", "BTC", "TANAP", "refinery",
+    # Macro
+    "Central Asia", "petroleum", "barrel", "oil production", "Uzbekistan",
 ]
 
 _HEADERS = {"User-Agent": "Mozilla/5.0 (energy research terminal)"}
