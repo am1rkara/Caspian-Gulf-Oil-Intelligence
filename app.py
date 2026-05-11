@@ -211,6 +211,36 @@ kz_prod  = production["Kazakhstan"]["latest_kbpd"]
 fiscal   = fiscal_nowcast(brent, kz_prod, IMF_BREAKEVENS_USD["Kazakhstan"])
 cpc      = cpc_utilization(kz_prod)
 
+
+def _hormuz_status(arts: list) -> dict:
+    """
+    Derive Hormuz tension level from recent RSS articles.
+    Scans titles+summaries for geopolitical keywords; counts hits in last 7 days.
+    Returns level, accent color, matched article list, and signal count.
+    """
+    from datetime import timedelta
+    SCAN = ["hormuz", "iran", "irgc", "tanker seized", "strait",
+            "blockade", "escalat", "gulf tension", "oil attack",
+            "persian gulf", "naval", "drone attack"]
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=7)
+    hits = []
+    for a in arts:
+        text = (a.get("title", "") + " " + a.get("summary", "")).lower()
+        pub  = a.get("published_dt")
+        if any(kw in text for kw in SCAN) and (pub is None or pub > cutoff):
+            hits.append(a)
+    n = len(hits)
+    if n >= 6:
+        level, color, dot = "HEIGHTENED", "#f87171", "🔴"
+    elif n >= 3:
+        level, color, dot = "ELEVATED",   "#f59e0b", "🟡"
+    else:
+        level, color, dot = "NORMAL",     "#4ade80", "🟢"
+    return {"level": level, "color": color, "dot": dot,
+            "articles": hits[:3], "count": n}
+
+hormuz = _hormuz_status(articles)
+
 # ── Header (padded) ────────────────────────────────────────────────────────────
 top_l, top_r = st.columns([5, 1])
 with top_l:
@@ -373,7 +403,69 @@ fig.update_layout(
                     "autoScale2d","resetScale2d","toImage"],
 )
 
-map_col, legend_col = st.columns([4, 1])
+status_col, map_col, legend_col = st.columns([1, 4, 1])
+
+# ── Chokepoint Status Panel ────────────────────────────────────────────────────
+with status_col:
+    h = hormuz
+    sig_rows = "".join(
+        f"<div style='border-left:2px solid {h['color']};padding-left:8px;"
+        f"margin-bottom:7px;color:#c8ccd8;font-size:10px;line-height:1.4'>"
+        f"<span style='color:#8b8fa8;font-size:9px'>{_html.escape(a['source'])}</span><br>"
+        f"{_html.escape(a['title'])[:70]}{'…' if len(a['title'])>70 else ''}</div>"
+        for a in h["articles"]
+    ) or f"<div style='color:#555a6e;font-size:10px'>No recent signals in feed</div>"
+
+    st.markdown(f"""
+<div style='background:#1c1f26;border:1px solid #2d3139;border-radius:4px;
+padding:14px;font-family:Inter,sans-serif;height:100%;'>
+
+<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
+letter-spacing:0.08em;margin-bottom:8px'>Hormuz Status</div>
+
+<div style='color:{h["color"]};font-size:15px;font-weight:700;
+margin-bottom:2px'>{h["level"]}</div>
+<div style='color:#6b7280;font-size:10px;margin-bottom:14px'>
+{h["count"]} signal{"s" if h["count"]!=1 else ""} in last 7 days</div>
+
+<div style='border-top:1px solid #2d3139;padding-top:12px;margin-bottom:12px'>
+<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
+letter-spacing:0.08em;margin-bottom:8px'>Transit Volume</div>
+<div style='color:#e8eaf0;font-size:13px;font-weight:600'>~17 mb/day</div>
+<div style='color:#6b7280;font-size:10px'>oil &amp; products</div>
+<div style='color:#e8eaf0;font-size:13px;font-weight:600;margin-top:5px'>~4 bcf/day</div>
+<div style='color:#6b7280;font-size:10px'>LNG in transit</div>
+<div style='color:#8b8fa8;font-size:10px;margin-top:6px'>≈ 20% of global oil trade</div>
+</div>
+
+<div style='border-top:1px solid #2d3139;padding-top:12px;margin-bottom:12px'>
+<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
+letter-spacing:0.08em;margin-bottom:8px'>Bypass Routes</div>
+
+<div style='margin-bottom:8px'>
+<div style='color:#4ade80;font-size:10px;font-weight:600'>&#10003; Saudi EWP Online</div>
+<div style='color:#6b7280;font-size:10px;line-height:1.5'>
+Abqaiq → Yanbu<br>5.0 mb/day cap · ~2.5 active<br>
+<span style='color:#8b8fa8'>Bypasses Hormuz entirely</span></div>
+</div>
+
+<div>
+<div style='color:#4ade80;font-size:10px;font-weight:600'>&#10003; UAE ADCOP Online</div>
+<div style='color:#6b7280;font-size:10px;line-height:1.5'>
+Habshan → Fujairah<br>1.5 mb/day cap · active<br>
+<span style='color:#8b8fa8'>Exits into Gulf of Oman</span></div>
+</div>
+</div>
+
+<div style='border-top:1px solid #2d3139;padding-top:12px'>
+<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
+letter-spacing:0.08em;margin-bottom:8px'>Recent Signals</div>
+{sig_rows}
+</div>
+
+</div>
+""", unsafe_allow_html=True)
+
 with map_col:
     event = st.plotly_chart(fig, key="energy_map", on_select="rerun", use_container_width=True)
 with legend_col:
