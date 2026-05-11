@@ -257,6 +257,93 @@ fig.add_trace(go.Choropleth(
     text=me_hover, hoverinfo="text",
     name="Middle East",
 ))
+# ── Infrastructure overlays ────────────────────────────────────────────────────
+
+# CPC — Tengiz → Novorossiysk (oil, ~1,511 km)
+fig.add_trace(go.Scattergeo(
+    lat=[53.1, 47.1, 46.5, 44.8, 44.7],
+    lon=[53.7, 51.9, 49.0, 43.0, 37.8],
+    mode="lines",
+    line=dict(color="#f59e0b", width=2.5),
+    name="CPC",
+    hovertext="CPC Pipeline — Tengiz → Novorossiysk<br>1,511 km · ~1.3 mb/day crude oil<br>Carries ~80% of Kazakhstan's exports",
+    hoverinfo="text",
+    showlegend=False,
+))
+
+# BTC — Baku → Tbilisi → Ceyhan (oil, ~1,768 km)
+fig.add_trace(go.Scattergeo(
+    lat=[40.4, 41.7, 41.2, 38.5, 36.9],
+    lon=[49.9, 44.8, 42.0, 38.0, 35.9],
+    mode="lines",
+    line=dict(color="#4ade80", width=2),
+    name="BTC",
+    hovertext="BTC Pipeline — Baku → Tbilisi → Ceyhan<br>1,768 km · ~1.2 mb/day crude oil<br>Primary KZ alternative export route via Azerbaijan",
+    hoverinfo="text",
+    showlegend=False,
+))
+
+# TANAP — Azerbaijan/Georgia → Turkey → Greece (natural gas)
+fig.add_trace(go.Scattergeo(
+    lat=[41.5, 39.9, 39.8, 39.9, 41.2],
+    lon=[43.5, 41.3, 32.0, 28.0, 26.2],
+    mode="lines",
+    line=dict(color="#a78bfa", width=2, dash="dot"),
+    name="TANAP",
+    hovertext="TANAP — Trans-Anatolian Pipeline<br>1,850 km · natural gas · Azerbaijan → Europe<br>Connects to Trans-Adriatic Pipeline (TAP)",
+    hoverinfo="text",
+    showlegend=False,
+))
+
+# Turkmenistan–China Gas Pipeline
+fig.add_trace(go.Scattergeo(
+    lat=[37.9, 40.5, 42.5, 44.2, 43.5],
+    lon=[61.1, 66.0, 72.0, 80.4, 84.0],
+    mode="lines",
+    line=dict(color="#22d3ee", width=2, dash="dot"),
+    name="TKM–China",
+    hovertext="Central Asia–China Gas Pipeline<br>~1,800 km · natural gas<br>Galkynysh (TKM) → Horgos (China) · gives Beijing pricing leverage",
+    hoverinfo="text",
+    showlegend=False,
+))
+
+# LNG Terminals
+fig.add_trace(go.Scattergeo(
+    lat=[25.9,  25.1,    22.6,      27.5],
+    lon=[51.6,  52.9,    59.5,      52.6],
+    mode="markers+text",
+    marker=dict(symbol="circle", size=8, color="#e8eaf0",
+                line=dict(color="#0e1117", width=1)),
+    text=["Ras Laffan", "Das Island", "Oman LNG", "S. Pars"],
+    textposition=["top right", "top right", "top right", "bottom right"],
+    textfont=dict(size=8, color="#e8eaf0", family="Inter, sans-serif"),
+    name="LNG Terminals",
+    hovertext=[
+        "Ras Laffan (Qatar) — world's largest LNG export complex · ~77 MTPA",
+        "Das Island (UAE) — ADNOC LNG terminal · ~5.8 MTPA",
+        "Oman LNG, Sur · ~10 MTPA",
+        "South Pars / Assaluyeh (Iran) — world's largest gas field",
+    ],
+    hoverinfo="text",
+    showlegend=False,
+))
+
+# Strait of Hormuz chokepoint
+fig.add_trace(go.Scattergeo(
+    lat=[26.6],
+    lon=[56.5],
+    mode="markers+text",
+    marker=dict(symbol="x-thin-open", size=16, color="#f87171",
+                line=dict(color="#f87171", width=2.5)),
+    text=["Hormuz"],
+    textposition="top center",
+    textfont=dict(size=10, color="#f87171", family="Inter, sans-serif"),
+    name="Hormuz",
+    hovertext="Strait of Hormuz — ~20% of global oil trade<br>~17 mb/day oil + LNG in transit<br>Iran controls northern shore",
+    hoverinfo="text",
+    showlegend=False,
+))
+
 fig.update_layout(
     geo=dict(
         projection_type="mercator",
@@ -279,7 +366,89 @@ fig.update_layout(
                     "autoScale2d","resetScale2d","toImage"],
 )
 
-event = st.plotly_chart(fig, key="energy_map", on_select="rerun", use_container_width=True)
+map_col, legend_col = st.columns([4, 1])
+with map_col:
+    event = st.plotly_chart(fig, key="energy_map", on_select="rerun", use_container_width=True)
+with legend_col:
+    st.markdown("""
+<div style='background:#1c1f26;border:1px solid #2d3139;border-radius:4px;
+padding:14px 16px;font-family:Inter,sans-serif;margin-top:4px'>
+
+<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
+letter-spacing:0.08em;margin-bottom:10px'>Infrastructure</div>
+
+<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
+letter-spacing:0.06em;margin-bottom:6px'>Pipelines</div>
+
+<div style='display:flex;align-items:center;gap:8px;margin-bottom:7px'>
+  <div style='width:24px;height:2px;background:#f59e0b;flex-shrink:0'></div>
+  <div>
+    <div style='color:#e8eaf0;font-size:11px;font-weight:600'>CPC</div>
+    <div style='color:#6b7280;font-size:10px'>Tengiz → Novorossiysk<br>1,511 km · oil</div>
+  </div>
+</div>
+
+<div style='display:flex;align-items:center;gap:8px;margin-bottom:7px'>
+  <div style='width:24px;height:2px;background:#4ade80;flex-shrink:0'></div>
+  <div>
+    <div style='color:#e8eaf0;font-size:11px;font-weight:600'>BTC</div>
+    <div style='color:#6b7280;font-size:10px'>Baku → Ceyhan<br>1,768 km · oil</div>
+  </div>
+</div>
+
+<div style='display:flex;align-items:center;gap:8px;margin-bottom:7px'>
+  <div style='width:24px;height:2px;background:#a78bfa;border-top:2px dotted #a78bfa;flex-shrink:0'></div>
+  <div>
+    <div style='color:#e8eaf0;font-size:11px;font-weight:600'>TANAP</div>
+    <div style='color:#6b7280;font-size:10px'>AZ → Turkey → EU<br>1,850 km · gas</div>
+  </div>
+</div>
+
+<div style='display:flex;align-items:center;gap:8px;margin-bottom:12px'>
+  <div style='width:24px;height:2px;background:#22d3ee;border-top:2px dotted #22d3ee;flex-shrink:0'></div>
+  <div>
+    <div style='color:#e8eaf0;font-size:11px;font-weight:600'>TKM–China</div>
+    <div style='color:#6b7280;font-size:10px'>Galkynysh → Xinjiang<br>~1,800 km · gas</div>
+  </div>
+</div>
+
+<div style='border-top:1px solid #2d3139;margin-bottom:10px'></div>
+
+<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
+letter-spacing:0.06em;margin-bottom:6px'>LNG Export Hubs</div>
+
+<div style='display:flex;align-items:center;gap:8px;margin-bottom:5px'>
+  <div style='width:8px;height:8px;border-radius:50%;background:#e8eaf0;flex-shrink:0'></div>
+  <div style='color:#c8ccd8;font-size:10px'>Ras Laffan (QAT)</div>
+</div>
+<div style='display:flex;align-items:center;gap:8px;margin-bottom:5px'>
+  <div style='width:8px;height:8px;border-radius:50%;background:#e8eaf0;flex-shrink:0'></div>
+  <div style='color:#c8ccd8;font-size:10px'>Das Island (UAE)</div>
+</div>
+<div style='display:flex;align-items:center;gap:8px;margin-bottom:5px'>
+  <div style='width:8px;height:8px;border-radius:50%;background:#e8eaf0;flex-shrink:0'></div>
+  <div style='color:#c8ccd8;font-size:10px'>Oman LNG, Sur</div>
+</div>
+<div style='display:flex;align-items:center;gap:8px;margin-bottom:12px'>
+  <div style='width:8px;height:8px;border-radius:50%;background:#e8eaf0;flex-shrink:0'></div>
+  <div style='color:#c8ccd8;font-size:10px'>South Pars (IRN)</div>
+</div>
+
+<div style='border-top:1px solid #2d3139;margin-bottom:10px'></div>
+
+<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
+letter-spacing:0.06em;margin-bottom:6px'>Chokepoint</div>
+
+<div style='display:flex;align-items:center;gap:8px'>
+  <div style='color:#f87171;font-size:14px;line-height:1;flex-shrink:0'>✕</div>
+  <div>
+    <div style='color:#f87171;font-size:11px;font-weight:600'>Hormuz</div>
+    <div style='color:#6b7280;font-size:10px'>~20% global oil trade<br>~17 mb/day in transit</div>
+  </div>
+</div>
+
+</div>
+""", unsafe_allow_html=True)
 
 # Parse clicked country ISO from customdata or location
 if event and event.selection and event.selection.points:
