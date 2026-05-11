@@ -44,7 +44,7 @@ def render_sidebar():
     """Call once per page, before any other sidebar content."""
     st.markdown(_NAV_CSS, unsafe_allow_html=True)
     with st.sidebar:
-        st.page_link("app.py",                             label="Terminal")
+        st.page_link("app.py",                             label="Caspian-Gulf Oil Intelligence")
         st.page_link("pages/1_News_Intelligence.py",       label="News Intelligence")
         st.page_link("pages/2_Gulf_Quant_Panel.py",        label="Gulf Markets")
         st.page_link("pages/3_Central_Asia_Panel.py",      label="Central Asia")

@@ -127,7 +127,8 @@ fig_opec.update_layout(
 )
 st.plotly_chart(fig_opec, use_container_width=True)
 st.markdown(
-    "<div class='muted'>EIA production · OPEC secretariat quotas Jan 2025</div>",
+    "<div class='muted'>EIA API production · Quota baseline: OPEC+ Ministerial Meeting Dec 2024 (effective Jan 2025). "
+    "Quotas remain in force until revised at the next ministerial — this is the correct benchmark for compliance assessment.</div>",
     unsafe_allow_html=True,
 )
 

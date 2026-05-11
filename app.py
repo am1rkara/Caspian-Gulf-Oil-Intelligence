@@ -1,6 +1,6 @@
 """
 app.py
-Energy Intelligence Terminal — landing page with interactive map.
+Caspian-Gulf Oil Intelligence — landing page with interactive map.
 """
 
 import sys
@@ -25,7 +25,7 @@ from src.metrics.calculations import urals_proxy, brent_wti_spread, cpc_utilizat
 from src.feeds.rss import get_articles
 
 st.set_page_config(
-    page_title="Energy Intelligence Terminal",
+    page_title="Caspian-Gulf Oil Intelligence",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -178,6 +178,11 @@ def load_kgs():
     except Exception:
         return "88"
 
+@st.cache_data(ttl=21600)
+def load_production_home():
+    from src.data.eia import get_production
+    return get_production(os.getenv("EIA_API_KEY"))
+
 @st.cache_data(ttl=3600)
 def load_articles():
     return get_articles(max_per_feed=10)
@@ -195,20 +200,22 @@ if "selected_iso" not in st.session_state:
 prices      = load_prices()
 articles, _ = load_articles()
 kgs_rate    = load_kgs()
+production  = load_production_home()
 
-brent  = prices["brent_spot"]
-wti    = prices["wti_spot"]
-spread = brent_wti_spread(brent, wti)
-kzt    = prices["kzt_per_usd"]
-urals  = urals_proxy(brent)
-fiscal = fiscal_nowcast(brent, 1960, IMF_BREAKEVENS_USD["Kazakhstan"])
-cpc    = cpc_utilization(1960)
+brent    = prices["brent_spot"]
+wti      = prices["wti_spot"]
+spread   = brent_wti_spread(brent, wti)
+kzt      = prices["kzt_per_usd"]
+urals    = urals_proxy(brent)
+kz_prod  = production["Kazakhstan"]["latest_kbpd"]
+fiscal   = fiscal_nowcast(brent, kz_prod, IMF_BREAKEVENS_USD["Kazakhstan"])
+cpc      = cpc_utilization(kz_prod)
 
 # ── Header (padded) ────────────────────────────────────────────────────────────
 top_l, top_r = st.columns([5, 1])
 with top_l:
-    st.markdown("<div class='padded'><h1 style='color:#e8eaf0;font-weight:700;font-size:2.1rem;line-height:1.1;margin-bottom:2px'>Energy Intelligence Terminal</h1>"
-                "<div style='color:#8b8fa8;font-size:13px'>Central Asia & Middle East — live market data, geopolitical news, quantitative analysis</div></div>",
+    st.markdown("<div class='padded'><h1 style='color:#e8eaf0;font-weight:700;font-size:2.1rem;line-height:1.1;margin-bottom:2px'>Caspian-Gulf Oil Intelligence</h1>"
+                "<div style='color:#8b8fa8;font-size:13px'>Central Asia & Middle East — supply chain risk, export bottlenecks, fiscal stress, pipeline geopolitics</div></div>",
                 unsafe_allow_html=True)
 with top_r:
     st.markdown(f"<div class='padded muted' style='text-align:right;margin-top:12px'>"

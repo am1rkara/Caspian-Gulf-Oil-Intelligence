@@ -170,9 +170,24 @@ with c2:
         )
         st.plotly_chart(fig_beta, use_container_width=True)
         st.markdown(
-            "<div class='muted'>Rolling 12M beta, KZT/USD on Brent. Regime splits at Feb 2022.</div>",
+            "<div class='muted'>Rolling 12M OLS beta, KZT/USD on Brent. Regime split: Feb 24 2022.</div>",
             unsafe_allow_html=True,
         )
+
+        # Beta regime interpretation
+        pre  = beta_df[beta_df["regime"] == "Pre-Feb 2022"]["beta"].mean()
+        post = beta_df[beta_df["regime"] == "Post-Feb 2022"]["beta"].mean()
+        if not (pd.isna(pre) or pd.isna(post)):
+            shift = "tightened" if abs(post) > abs(pre) else "weakened"
+            st.markdown(f"""
+<div style='background:#131720;border:1px solid #2d3139;border-left:3px solid #6366f1;
+border-radius:4px;padding:12px 16px;margin-top:8px;font-size:12px;line-height:1.7'>
+<span style='color:#8b8fa8;font-size:9px;text-transform:uppercase;letter-spacing:0.08em'>Beta Interpretation</span><br>
+<span style='color:#3b82f6;font-weight:600'>Pre-2022 β = {pre:.2f}</span>
+<span style='color:#6b7280'> · managed float, NBK smoothed FX volatility</span><br>
+<span style='color:#f87171;font-weight:600'>Post-2022 β = {post:.2f}</span>
+<span style='color:#6b7280'> · oil-FX linkage {shift} after sanctions shock forced a more market-driven rate</span>
+</div>""", unsafe_allow_html=True)
     else:
         st.markdown("<div class='dim'>Insufficient data for beta calculation.</div>", unsafe_allow_html=True)
 
@@ -298,6 +313,110 @@ with c6:
         "<div class='muted'>Revenue sensitivity to Brent. Green = above fiscal breakeven.</div>",
         unsafe_allow_html=True,
     )
+
+# ── Export Trade Flow ─────────────────────────────────────────────────────────
+st.markdown("<div class='sec'>KZ Export Supply Chain</div>", unsafe_allow_html=True)
+st.markdown(
+    "<div class='dim'>Where Kazakhstan's oil goes — and why the Urals discount exists. "
+    "European refiners are the price-setting buyers; their post-2022 Urals aversion is the mechanism behind the discount.</div>",
+    unsafe_allow_html=True,
+)
+
+cpc_vol  = round(kz_prod * 0.65)
+btc_vol  = 200
+kcts_vol = 200
+dom_vol  = max(0, round(kz_prod - cpc_vol - btc_vol - kcts_vol))
+
+fig_sankey = go.Figure(go.Sankey(
+    arrangement="snap",
+    node=dict(
+        label=["KZ Production", "CPC Route", "BTC Route", "China Pipeline", "Domestic / Other",
+               "NW European Refiners", "Mediterranean Refiners", "E. Europe / Turkey",
+               "Chinese Refiners"],
+        color=["#3b82f6",
+               "#f59e0b", "#4ade80", "#22d3ee", "#374151",
+               "#4b5563", "#4b5563", "#4b5563", "#4b5563"],
+        pad=18, thickness=18,
+        line=dict(color="#1e2128", width=0.5),
+    ),
+    link=dict(
+        source=[0,       0,       0,        0,
+                1,          1,                1,              2,       3],
+        target=[1,       2,       3,        4,
+                5,          6,                7,              6,       8],
+        value= [cpc_vol, btc_vol, kcts_vol, dom_vol,
+                round(cpc_vol*0.32), round(cpc_vol*0.44), round(cpc_vol*0.24),
+                btc_vol, kcts_vol],
+        color= ["rgba(245,158,11,0.25)", "rgba(74,222,128,0.25)",
+                "rgba(34,211,238,0.25)", "rgba(107,114,128,0.15)",
+                "rgba(107,114,128,0.3)", "rgba(107,114,128,0.3)",
+                "rgba(107,114,128,0.3)", "rgba(74,222,128,0.2)",
+                "rgba(34,211,238,0.2)"],
+        hovertemplate="%{source.label} → %{target.label}: %{value:,} kbd<extra></extra>",
+    ),
+))
+fig_sankey.update_layout(
+    paper_bgcolor="#0e1117",
+    plot_bgcolor="#0e1117",
+    font=dict(family="Inter, sans-serif", color="#c8ccd8", size=11),
+    height=300,
+    margin=dict(l=0, r=0, t=0, b=0),
+)
+st.plotly_chart(fig_sankey, use_container_width=True)
+st.markdown(
+    f"<div class='muted'>Volumes estimated: CPC {cpc_vol:,} kbd (65% of EIA production) · "
+    f"BTC ~200 kbd · KCTS (China) ~200 kbd. "
+    f"European refiners set the marginal Urals price — their post-2022 aversion is the structural cause of the discount.</div>",
+    unsafe_allow_html=True,
+)
+
+# ── CPC Disruption Scenario Analysis ──────────────────────────────────────────
+st.markdown("<div class='sec'>CPC Disruption: Revenue Impact Scenarios</div>", unsafe_allow_html=True)
+st.markdown(
+    "<div class='dim'>If Russia restricts CPC throughput — as it has done repeatedly since 2022 — what is the fiscal cost to Kazakhstan?</div>",
+    unsafe_allow_html=True,
+)
+
+disruption_pcts = [0, 10, 25, 50]
+urals_price     = urals_proxy(brent)
+
+rows_html = ""
+for pct in disruption_pcts:
+    lost_kbd    = round(cpc_vol * pct / 100)
+    rev_lost_bn = round(lost_kbd * 1000 * 365 * urals_price * 0.5 / 1e9, 1)
+    buf_remain  = round(fiscal["buffer_bn"] - rev_lost_bn, 1)
+    sev_color   = {"0": "#4ade80", "10": "#f59e0b", "25": "#f97316", "50": "#f87171"}.get(str(pct), "#c8ccd8")
+    buf_cls     = "#4ade80" if buf_remain > 0 else "#f87171"
+    rows_html  += f"""
+    <tr>
+      <td style='color:{sev_color};font-weight:600;padding:8px 12px'>{pct}%</td>
+      <td style='color:#c8ccd8;padding:8px 12px'>{lost_kbd:,} kbd</td>
+      <td style='color:#f87171;padding:8px 12px'>–${rev_lost_bn:.1f}B/yr</td>
+      <td style='color:{buf_cls};padding:8px 12px'>${buf_remain:+.1f}B/yr</td>
+    </tr>"""
+
+st.markdown(f"""
+<div style='background:#1c1f26;border:1px solid #2d3139;border-radius:4px;overflow:hidden'>
+<table style='width:100%;border-collapse:collapse;font-family:Inter,sans-serif;font-size:12px'>
+  <thead>
+    <tr style='border-bottom:1px solid #2d3139'>
+      <th style='color:#8b8fa8;font-size:9px;text-transform:uppercase;letter-spacing:0.08em;
+          font-weight:500;padding:8px 12px;text-align:left'>CPC Disruption</th>
+      <th style='color:#8b8fa8;font-size:9px;text-transform:uppercase;letter-spacing:0.08em;
+          font-weight:500;padding:8px 12px;text-align:left'>Lost Volume</th>
+      <th style='color:#8b8fa8;font-size:9px;text-transform:uppercase;letter-spacing:0.08em;
+          font-weight:500;padding:8px 12px;text-align:left'>Revenue Impact</th>
+      <th style='color:#8b8fa8;font-size:9px;text-transform:uppercase;letter-spacing:0.08em;
+          font-weight:500;padding:8px 12px;text-align:left'>Remaining Fiscal Buffer</th>
+    </tr>
+  </thead>
+  <tbody>{rows_html}</tbody>
+</table>
+</div>
+<div class='muted' style='margin-top:6px'>At Brent ${brent:.0f}, Urals proxy ${urals_price:.0f}.
+Revenue impact = lost volume × Urals price × 50% govt take.
+Baseline fiscal buffer: ${fiscal['buffer_bn']:+.1f}B/yr vs ${kz_breakeven} breakeven.</div>
+""", unsafe_allow_html=True)
 
 # ── Transmission Chain ────────────────────────────────────────────────────────
 cpc_hd   = cpc["headroom_kbd"]
