@@ -1,118 +1,143 @@
 """
-metrics/calculations.py
-Core analytical metrics. This is where the industry knowledge lives.
+src/metrics/calculations.py
+Core analytical metrics for the Energy Intelligence Terminal.
 """
 
 import pandas as pd
 import numpy as np
 from scipy import stats
+from src.data.imf import URALS_DISCOUNT, CPC_CAPACITY_KBPD
 
 
-def currency_oil_beta(brent: pd.DataFrame, kzt: pd.DataFrame, window_months: int = None) -> pd.DataFrame:
+def urals_proxy(brent: float) -> float:
+    """Current Urals realized price using post-2022 sanctions regime discount."""
+    return round(brent - URALS_DISCOUNT["post_2022"], 2)
+
+
+def brent_wti_spread(brent: float, wti: float) -> float:
+    return round(wti - brent, 2)
+
+
+def kzt_brent_beta(
+    brent_hist: pd.DataFrame,
+    kzt_hist: pd.DataFrame,
+    window_months: int = 12,
+) -> pd.DataFrame:
     """
-    Rolling regression: KZT/USD ~ Brent
-    Expect negative beta: higher Brent → stronger KZT → fewer KZT per USD.
-    Measures how tightly FX policy tracks oil revenue.
+    Rolling OLS beta: KZT/USD ~ Brent.
+    Split pre/post Feb 2022 to show regime change.
+    Returns DataFrame(date, beta, r2, regime).
     """
     brent_m = (
-        brent.set_index("date")["brent_usd"]
+        brent_hist.set_index("date")["brent_usd"]
         .resample("MS").mean()
         .reset_index()
     )
-    kzt_m = kzt.copy()
+    kzt_m = kzt_hist.copy()
     kzt_m["date"] = pd.to_datetime(kzt_m["date"]).dt.to_period("M").dt.to_timestamp()
 
-    merged = pd.merge(brent_m, kzt_m, on="date").dropna()
-    merged = merged.sort_values("date").reset_index(drop=True)
+    merged = pd.merge(brent_m, kzt_m, on="date").dropna().sort_values("date").reset_index(drop=True)
+    if len(merged) < window_months + 1:
+        return pd.DataFrame()
 
     betas, r2s, dates = [], [], []
-    if window_months is None:
-        window_months = 3 if len(merged) < 30 else 12
     for i in range(window_months, len(merged)):
-        window = merged.iloc[i - window_months:i]
-        slope, intercept, r, p, se = stats.linregress(
-            window["brent_usd"], window["kzt_per_usd"]
-        )
+        w = merged.iloc[i - window_months:i]
+        if len(w) < 3:
+            continue
+        if w["brent_usd"].nunique() <= 1 or w["kzt_per_usd"].nunique() <= 1:
+            continue
+        slope, _, r, _, _ = stats.linregress(w["brent_usd"], w["kzt_per_usd"])
         betas.append(slope)
-        r2s.append(r**2)
+        r2s.append(r ** 2)
         dates.append(merged.iloc[i]["date"])
 
-    return pd.DataFrame({"date": dates, "beta": betas, "r2": r2s})
-
-
-def cpc_gap(cpc: pd.DataFrame) -> pd.DataFrame:
-    """
-    Volume left on the table due to pipeline constraints.
-    At Brent spot, what's the implied revenue loss from underutilization?
-    """
-    cpc = cpc.copy()
-    cpc["gap_mt"] = cpc["capacity_mt"] - cpc["throughput_mt"]
-    # ~$60/barrel implied margin, 7.3 barrels/metric ton conversion
-    cpc["implied_revenue_loss_bn_usd"] = (cpc["gap_mt"] * 1e6 * 7.3 * 60 / 1e9).round(2)
-    return cpc
-
-
-def grid_dependency_trend(power: pd.DataFrame) -> dict:
-    """
-    Simple trend: is Russia import dependency rising or falling?
-    Returns direction and magnitude for dashboard callout.
-    """
-    recent = power.tail(3)["russia_dependency_pct"].values
-    delta = recent[-1] - recent[0]
-    return {
-        "current_pct": round(recent[-1], 1),
-        "delta_3yr": round(delta, 1),
-        "direction": "rising" if delta > 0 else "falling"
-    }
-
-
-def fiscal_stress(fiscal: pd.DataFrame, brent_spot: float) -> dict:
-    """
-    Compare current Brent to latest breakeven.
-    Positive buffer = fiscal cushion. Negative = pressure on NFRK transfers.
-    """
-    latest = fiscal.iloc[-1]
-    buffer = brent_spot - latest["breakeven_usd"]
-    return {
-        "breakeven": latest["breakeven_usd"],
-        "brent_spot": round(brent_spot, 1),
-        "buffer": round(buffer, 1),
-        "year": int(latest["year"])
-    }
-
-
-def urals_revenue_impact(urals_df: pd.DataFrame, kz_export_kbd: float = 1400.0) -> pd.DataFrame:
-    """
-    Quantify the hidden revenue loss from the Urals discount vs Brent.
-    KZ exports ~1,400 kbd through CPC (67 MT/yr × 7.3 bbl/MT ÷ 365), priced off Urals.
-    A $1/bbl wider spread costs KZ ~$0.51B/yr.
-    """
-    df = urals_df.copy()
-    df["daily_loss_mn_usd"] = abs(df["spread"]) * kz_export_kbd * 1000 / 1e6
-    df["annual_loss_bn_usd"] = (df["daily_loss_mn_usd"] * 365 / 1e3).round(2)
+    cutoff = pd.Timestamp("2022-02-24")
+    df = pd.DataFrame({"date": dates, "beta": betas, "r2": r2s})
+    df["regime"] = df["date"].apply(lambda d: "Post-Feb 2022" if d >= cutoff else "Pre-Feb 2022")
     return df
 
 
-def tengiz_capacity_crunch(tracker_df: pd.DataFrame) -> pd.DataFrame:
+def fiscal_nowcast(
+    brent: float,
+    production_kbpd: float,
+    breakeven: float,
+    govt_take: float = 0.50,
+) -> dict:
     """
-    Model the developing capacity crunch as Tengiz FGP volumes come online.
-    Negative surplus = KZ production exceeds CPC allocation → stranded barrels.
+    Estimate annualized oil revenue vs fiscal breakeven.
+    revenue = Brent × production × 1000 bbl/kbd × 365 days × govt_take / 1e9 → $B/yr
     """
-    df = tracker_df.copy()
-    df["cpc_surplus_kbd"] = df["cpc_capacity_kbd"] - df["kz_cpc_bound_kbd"]
-    df["is_constrained"] = df["cpc_surplus_kbd"] < 0
-    df["stranded_kbd"] = df["cpc_surplus_kbd"].clip(upper=0).abs()
-    return df
+    annual_revenue_bn = brent * production_kbpd * 1000 * 365 * govt_take / 1e9
+    # Required revenue to meet breakeven budget
+    breakeven_revenue_bn = breakeven * production_kbpd * 1000 * 365 * govt_take / 1e9
+    buffer_bn = annual_revenue_bn - breakeven_revenue_bn
+
+    return {
+        "annual_revenue_bn": round(annual_revenue_bn, 1),
+        "breakeven_revenue_bn": round(breakeven_revenue_bn, 1),
+        "buffer_bn": round(buffer_bn, 1),
+        "buffer_pct": round((brent - breakeven) / breakeven * 100, 1),
+        "is_comfortable": brent >= breakeven,
+    }
 
 
-def wti_brent_spread(brent: pd.DataFrame, wti: pd.DataFrame) -> pd.DataFrame:
+def opec_gap(production_kbpd: dict, quotas: dict) -> dict:
     """
-    Live WTI-Brent spread. Structural negative (WTI discount) reflects
-    landlocked US supply vs waterborne Brent. Traders watch this for
-    global crude quality and logistics signals.
+    Returns {country: {"production": kbpd, "quota": kbpd, "gap": kbpd, "compliant": bool}}
+    Positive gap = over-quota (non-compliant).
     """
-    brent_m = brent.set_index("date")["brent_usd"].resample("MS").mean().reset_index()
-    wti_m = wti.set_index("date")["wti_usd"].resample("MS").mean().reset_index()
-    merged = pd.merge(brent_m, wti_m, on="date").dropna()
-    merged["spread"] = merged["wti_usd"] - merged["brent_usd"]
-    return merged
+    result = {}
+    for country, quota in quotas.items():
+        prod = production_kbpd.get(country, quota)
+        gap = prod - quota
+        result[country] = {
+            "production": prod,
+            "quota": quota,
+            "gap": round(gap, 0),
+            "compliant": gap <= 50,  # 50 kbd tolerance
+        }
+    return result
+
+
+def cpc_utilization(kz_production_kbpd: float) -> dict:
+    """
+    Derive CPC utilization from EIA production data.
+    ~90% of KZ production routes through CPC.
+    """
+    # ~65% of KZ production routes through CPC (rest: BTC ~10%, China pipe ~10%, domestic ~15%)
+    cpc_bound = kz_production_kbpd * 0.65
+    utilization_pct = (cpc_bound / CPC_CAPACITY_KBPD) * 100
+    headroom_kbd = CPC_CAPACITY_KBPD - cpc_bound
+    return {
+        "cpc_bound_kbd": round(cpc_bound, 0),
+        "capacity_kbd": CPC_CAPACITY_KBPD,
+        "utilization_pct": round(utilization_pct, 1),
+        "headroom_kbd": round(headroom_kbd, 0),
+        "is_constrained": utilization_pct > 90,
+    }
+
+
+def transmission_chain(brent: float, kz_prod_kbpd: float) -> dict:
+    """
+    Quantify the Gulf → KZ transmission chain with current numbers.
+    Models impact of +$10/bbl Brent move on KZ net revenue.
+    """
+    urals = urals_proxy(brent)
+    discount = URALS_DISCOUNT["post_2022"]
+    cpc = cpc_utilization(kz_prod_kbpd)
+
+    # Revenue impact of +$10 Brent, accounting for Urals discount pass-through
+    # Assume Urals moves 1:1 with Brent (spread stays fixed)
+    bbl_per_year = kz_prod_kbpd * 1000 * 365
+    gross_impact_bn = 10 * bbl_per_year * 0.50 / 1e9  # $10/bbl × production × govt take
+    net_impact_bn = gross_impact_bn  # spread is fixed, so full Brent move passes through
+
+    return {
+        "brent": brent,
+        "urals_realized": urals,
+        "urals_discount": discount,
+        "cpc_utilization_pct": cpc["utilization_pct"],
+        "cpc_headroom_kbd": cpc["headroom_kbd"],
+        "revenue_per_10usd_brent_bn": round(net_impact_bn, 2),
+    }

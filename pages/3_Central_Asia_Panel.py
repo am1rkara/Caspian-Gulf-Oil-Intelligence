@@ -1,0 +1,272 @@
+"""
+pages/3_Central_Asia_Panel.py
+Kazakhstan transmission panel.
+"""
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from dotenv import load_dotenv
+load_dotenv()
+
+import os
+import streamlit as st
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import pandas as pd
+
+from src.style import TERMINAL_CSS
+from src.data.market import get_prices, get_brent_history, get_kzt_history
+from src.data.eia import get_production
+from src.data.imf import IMF_BREAKEVENS_USD, OPEC_QUOTAS_KBPD, CPC_CAPACITY_KBPD, URALS_DISCOUNT
+from src.metrics.calculations import (
+    urals_proxy, kzt_brent_beta, cpc_utilization,
+    fiscal_nowcast, opec_gap, transmission_chain,
+)
+
+st.set_page_config(page_title="Central Asia", layout="wide")
+st.markdown(TERMINAL_CSS, unsafe_allow_html=True)
+
+PLOT = dict(
+    template="plotly_dark",
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="Inter, sans-serif", color="#8b8fa8", size=11),
+)
+GRID = "#1e2128"
+
+def mc(label, value, delta=None, delta_label="", pos_good=True):
+    d = ""
+    if delta is not None:
+        sign = "+" if delta > 0 else ""
+        cls  = "pos" if (delta > 0) == pos_good else "neg"
+        d = f"<div class='mc-d {cls}'>{sign}{delta} {delta_label}</div>"
+    return f"<div class='mc'><div class='mc-l'>{label}</div><div class='mc-v'>{value}</div>{d}</div>"
+
+# ── Loaders ────────────────────────────────────────────────────────────────────
+@st.cache_data(ttl=3600)
+def load_prices():      return get_prices()
+
+@st.cache_data(ttl=3600)
+def load_brent_hist():  return get_brent_history()
+
+@st.cache_data(ttl=3600)
+def load_kzt_hist():    return get_kzt_history()
+
+@st.cache_data(ttl=21600)
+def load_production():  return get_production(os.getenv("EIA_API_KEY"))
+
+prices     = load_prices()
+brent_hist = load_brent_hist()
+kzt_hist   = load_kzt_hist()
+production = load_production()
+
+brent        = prices["brent_spot"]
+kzt          = prices["kzt_per_usd"]
+urals        = urals_proxy(brent)
+kz_prod      = production["Kazakhstan"]["latest_kbpd"]
+kz_breakeven = IMF_BREAKEVENS_USD["Kazakhstan"]
+cpc          = cpc_utilization(kz_prod)
+fiscal       = fiscal_nowcast(brent, kz_prod, kz_breakeven)
+chain        = transmission_chain(brent, kz_prod)
+kz_gap       = opec_gap({"Kazakhstan": kz_prod}, OPEC_QUOTAS_KBPD)["Kazakhstan"]
+
+# ── Header ─────────────────────────────────────────────────────────────────────
+st.markdown("<h2 style='color:#e8eaf0;font-weight:700;margin-bottom:2px'>Central Asia Energy</h2>", unsafe_allow_html=True)
+st.markdown(f"<div class='muted'>yfinance · EIA API · IMF WEO · OPEC secretariat · {prices.get('fetched_at','—')}</div>", unsafe_allow_html=True)
+
+if prices.get("data_stale"):
+    st.markdown(f"<div class='stale'>{prices.get('stale_reason','Market data unavailable')}</div>", unsafe_allow_html=True)
+
+# ── KPI Row ────────────────────────────────────────────────────────────────────
+k1, k2, k3, k4 = st.columns(4)
+with k1: st.markdown(mc("KZT / USD", f"{kzt:.0f}"), unsafe_allow_html=True)
+with k2:
+    st.markdown(mc("Urals Realized", f"${urals:.2f}",
+        delta=round(-URALS_DISCOUNT["post_2022"], 1),
+        delta_label="vs Brent", pos_good=False), unsafe_allow_html=True)
+with k3:
+    headroom_cls = "pos" if not cpc["is_constrained"] else "neg"
+    st.markdown(f"""<div class='mc'>
+        <div class='mc-l'>CPC Utilization</div>
+        <div class='mc-v'>{cpc['utilization_pct']:.1f}%</div>
+        <div class='mc-d {headroom_cls}'>{cpc['headroom_kbd']:+.0f} kbd headroom</div>
+    </div>""", unsafe_allow_html=True)
+with k4:
+    st.markdown(mc("Fiscal Buffer", f"${fiscal['buffer_bn']:+.1f}B/yr",
+        delta=round(brent - kz_breakeven, 1),
+        delta_label=f"vs ${kz_breakeven} breakeven", pos_good=True), unsafe_allow_html=True)
+
+# ── KZT/USD + Brent ───────────────────────────────────────────────────────────
+st.markdown("<div class='sec'>KZT/USD vs Brent — 5-Year</div>", unsafe_allow_html=True)
+
+c1, c2 = st.columns([3, 2])
+with c1:
+    if not brent_hist.empty and not kzt_hist.empty:
+        fig_fx = make_subplots(specs=[[{"secondary_y": True}]])
+        fig_fx.add_trace(go.Scatter(
+            x=brent_hist["date"], y=brent_hist["brent_usd"],
+            name="Brent (USD/bbl)", line=dict(color="#3b82f6", width=1.5),
+        ), secondary_y=False)
+        fig_fx.add_trace(go.Scatter(
+            x=kzt_hist["date"], y=kzt_hist["kzt_per_usd"],
+            name="KZT/USD", line=dict(color="#f87171", width=1.5),
+        ), secondary_y=True)
+        fig_fx.add_vline(x="2022-02-24", line_dash="dot", line_color="#6366f1", line_width=1)
+        fig_fx.add_annotation(x="2022-02-24", y=0.95, xref="x", yref="paper",
+            text="Feb 2022 regime shift", showarrow=False, textangle=-90,
+            font=dict(size=9, color="#6366f1"), xshift=-10)
+        fig_fx.update_layout(**PLOT, height=300,
+            legend=dict(orientation="h", y=-0.22, font=dict(size=11)),
+            margin=dict(l=0, r=0, t=0, b=0))
+        fig_fx.update_yaxes(title_text="Brent USD/bbl", secondary_y=False, gridcolor=GRID, title_font=dict(size=11))
+        fig_fx.update_yaxes(title_text="KZT per USD", secondary_y=True, title_font=dict(size=11))
+        st.plotly_chart(fig_fx, use_container_width=True)
+        st.markdown("<div class='muted'>Source: yfinance (USDKZT=X, BZ=F)</div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='dim'>Historical data unavailable — yfinance unreachable.</div>", unsafe_allow_html=True)
+
+with c2:
+    beta_df = kzt_brent_beta(brent_hist, kzt_hist)
+    if not beta_df.empty:
+        regime_colors = {"Pre-Feb 2022": "#3b82f6", "Post-Feb 2022": "#f87171"}
+        fig_beta = go.Figure()
+        for regime, grp in beta_df.groupby("regime"):
+            fig_beta.add_trace(go.Scatter(
+                x=grp["date"], y=grp["beta"],
+                name=regime, line=dict(color=regime_colors.get(regime, "#a78bfa"), width=1.8),
+            ))
+        fig_beta.add_hline(y=0, line_dash="dot", line_color="#374151", line_width=1)
+        fig_beta.update_layout(**PLOT, height=300,
+            legend=dict(orientation="h", y=-0.22, font=dict(size=11)),
+            margin=dict(l=0, r=0, t=10, b=0),
+            yaxis=dict(title="beta", gridcolor=GRID, title_font=dict(size=11)),
+        )
+        st.plotly_chart(fig_beta, use_container_width=True)
+        st.markdown("<div class='muted'>Rolling 12M OLS beta. Negative = higher Brent → stronger KZT. Regime splits at Feb 2022.</div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='dim'>Insufficient data for beta calculation.</div>", unsafe_allow_html=True)
+
+# ── OPEC+ Compliance + CPC ────────────────────────────────────────────────────
+st.markdown("<div class='sec'>OPEC+ Compliance & CPC Utilization</div>", unsafe_allow_html=True)
+
+c3, c4 = st.columns(2)
+with c3:
+    kz_hist = production["Kazakhstan"].get("history", pd.DataFrame())
+    if not kz_hist.empty:
+        quota_val = OPEC_QUOTAS_KBPD["Kazakhstan"]
+        bar_colors = ["#4ade80" if v <= quota_val + 50 else "#f87171" for v in kz_hist["kbpd"]]
+        fig_kz = go.Figure()
+        fig_kz.add_trace(go.Bar(x=kz_hist["date"], y=kz_hist["kbpd"], marker_color=bar_colors, name="Production"))
+        fig_kz.add_trace(go.Scatter(
+            x=kz_hist["date"], y=[quota_val]*len(kz_hist),
+            name=f"Quota {quota_val:,} kbd", line=dict(color="#f59e0b", width=1.8, dash="dash"),
+        ))
+        fig_kz.update_layout(**PLOT, height=280,
+            legend=dict(orientation="h", y=-0.22, font=dict(size=11)),
+            margin=dict(l=0, r=0, t=0, b=0),
+            yaxis=dict(title="kbd", gridcolor=GRID, title_font=dict(size=11)),
+        )
+        st.plotly_chart(fig_kz, use_container_width=True)
+    else:
+        compliance_cls = "pos" if kz_gap["compliant"] else "neg"
+        st.markdown(f"""<div class='mc'>
+            <div class='mc-l'>KZ vs OPEC+ Quota</div>
+            <div class='mc-v'>{kz_gap['production']:,.0f} kbd</div>
+            <div class='mc-d {compliance_cls}'>{kz_gap['gap']:+.0f} kbd vs {kz_gap['quota']:,} quota</div>
+        </div>""", unsafe_allow_html=True)
+        st.markdown("<div class='dim'>Historical EIA series unavailable — showing current estimate.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='muted'>Source: EIA API · Quota: OPEC Jan 2025</div>", unsafe_allow_html=True)
+
+with c4:
+    fig_cpc = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=cpc["utilization_pct"],
+        title={"text": "CPC Utilization", "font": {"size": 13, "color": "#8b8fa8"}},
+        gauge={
+            "axis": {"range": [0, 110], "tickcolor": "#555a6e", "tickfont": {"size": 10}},
+            "bar": {"color": "#f87171" if cpc["is_constrained"] else "#4ade80"},
+            "bgcolor": "#1c1f26",
+            "bordercolor": "#2d3139",
+            "steps": [
+                {"range": [0, 85],  "color": "#111318"},
+                {"range": [85, 95], "color": "#1a1a12"},
+                {"range": [95, 110],"color": "#1a1212"},
+            ],
+            "threshold": {"line": {"color": "#f59e0b", "width": 2}, "value": 95},
+        },
+        number={"suffix": "%", "font": {"color": "#e8eaf0", "size": 28}},
+    ))
+    fig_cpc.update_layout(**PLOT, height=280, margin=dict(l=20, r=20, t=20, b=10))
+    st.plotly_chart(fig_cpc, use_container_width=True)
+    st.markdown(f"<div class='muted'>Capacity: {CPC_CAPACITY_KBPD:,} kbd · KZ CPC-bound ≈ 65% of EIA production · Headroom: {cpc['headroom_kbd']:+.0f} kbd</div>", unsafe_allow_html=True)
+
+# ── Fiscal Nowcast ─────────────────────────────────────────────────────────────
+st.markdown("<div class='sec'>Fiscal Nowcast</div>", unsafe_allow_html=True)
+
+c5, c6 = st.columns([2, 3])
+with c5:
+    buf_cls = "pos" if fiscal["is_comfortable"] else "neg"
+    st.markdown(f"""<div class='mc'>
+        <div class='mc-l'>Annualized Oil Revenue</div>
+        <div class='mc-v'>${fiscal['annual_revenue_bn']:.1f}B</div>
+        <div class='mc-d'>Breakeven: ${fiscal['breakeven_revenue_bn']:.1f}B &nbsp;
+            <span class='{buf_cls}'>Buffer ${fiscal['buffer_bn']:+.1f}B</span>
+        </div>
+    </div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style='color:#8b8fa8;font-size:12px;margin-top:10px;line-height:1.7'>
+        Brent ${brent:.0f} × {kz_prod:,.0f} kbd × 365 days × 50% govt take.<br>
+        Breakeven: ${kz_breakeven}/bbl (IMF WEO 2025).<br>
+        +$10 Brent adds <span style='color:#f59e0b;font-weight:600'>${chain['revenue_per_10usd_brent_bn']:.1f}B/yr</span>.
+    </div>""", unsafe_allow_html=True)
+
+with c6:
+    scenarios = [50, 55, 60, 65, 70, 75, 80, 85, 90]
+    rev_vals  = [fiscal_nowcast(b, kz_prod, kz_breakeven)["annual_revenue_bn"] for b in scenarios]
+    be_rev    = fiscal["breakeven_revenue_bn"]
+    bar_clrs  = ["#4ade80" if b >= kz_breakeven else "#f87171" for b in scenarios]
+
+    fig_nowcast = go.Figure()
+    fig_nowcast.add_trace(go.Bar(x=scenarios, y=rev_vals, marker_color=bar_clrs))
+    fig_nowcast.add_hline(y=be_rev, line_dash="dash", line_color="#f59e0b", line_width=1)
+    fig_nowcast.add_vline(x=brent, line_dash="dash", line_color="#3b82f6", line_width=1)
+    fig_nowcast.add_annotation(x=brent, y=max(rev_vals),
+        text=f"${brent:.0f}", showarrow=False, font=dict(size=10, color="#3b82f6"), yshift=8)
+    fig_nowcast.update_layout(**PLOT, height=280, showlegend=False,
+        margin=dict(l=0, r=0, t=0, b=0),
+        xaxis=dict(title="Brent (USD/bbl)", gridcolor=GRID, title_font=dict(size=11)),
+        yaxis=dict(title="$B/yr", gridcolor=GRID, title_font=dict(size=11)),
+    )
+    st.plotly_chart(fig_nowcast, use_container_width=True)
+    st.markdown("<div class='muted'>Revenue sensitivity to Brent price. Green = above fiscal breakeven.</div>", unsafe_allow_html=True)
+
+# ── Transmission Chain ────────────────────────────────────────────────────────
+st.markdown("<div class='sec'>Gulf to Kazakhstan Transmission</div>", unsafe_allow_html=True)
+
+cpc_hd    = cpc["headroom_kbd"]
+cpc_util  = cpc["utilization_pct"]
+disc      = URALS_DISCOUNT["post_2022"]
+rev10     = chain["revenue_per_10usd_brent_bn"]
+
+st.markdown(f"""
+<div style='background:#131720;border:1px solid #2d3139;border-left:3px solid #6366f1;
+border-radius:4px;padding:18px 22px;color:#c8ccd8;font-size:13px;line-height:1.9'>
+<span style='color:#e8eaf0;font-weight:600'>Hormuz tightens → Brent spikes → KZ fiscal revenue improves
+(+${rev10:.1f}B per +$10/bbl) → KZT strengthens</span><br><br>
+<span style='color:#f87171;font-weight:500'>Structural limits cap the upside:</span><br>
+&nbsp;&nbsp;<span style='color:#6b7280'>①</span>
+<b style='color:#e8eaf0'>Urals discount:</b>
+KZ CPC exports price off Urals, not Brent.
+Current discount <span style='color:#f59e0b;font-weight:600'>–${disc:.0f}/bbl</span>.
+At Brent ${brent:.0f}, KZ receives ~<span style='color:#f59e0b;font-weight:600'>${urals:.0f}/bbl</span>.<br>
+&nbsp;&nbsp;<span style='color:#6b7280'>②</span>
+<b style='color:#e8eaf0'>CPC capacity:</b>
+Pipeline at <span style='color:#f59e0b;font-weight:600'>{cpc_util:.1f}% utilization</span>
+({cpc_hd:+.0f} kbd headroom). Russia has blocked expansion to 80+ MT/yr.<br>
+&nbsp;&nbsp;<span style='color:#6b7280'>③</span>
+<b style='color:#e8eaf0'>Route concentration:</b>
+~80% of exports through one Russian-controlled corridor.
+Geopolitical disruption risk is structural, not episodic.
+</div>
+""", unsafe_allow_html=True)
