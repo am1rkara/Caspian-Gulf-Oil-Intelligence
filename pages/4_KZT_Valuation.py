@@ -25,6 +25,8 @@ st.set_page_config(page_title="KZT Valuation", layout="wide", initial_sidebar_st
 inject_css()
 render_sidebar()
 
+st.markdown("<h1>KZT Valuation</h1>", unsafe_allow_html=True)
+
 PLOT = dict(
     template="plotly_dark",
     paper_bgcolor="rgba(0,0,0,0)",

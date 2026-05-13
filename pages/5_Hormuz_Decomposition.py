@@ -28,6 +28,8 @@ st.set_page_config(page_title="Hormuz Decomposition", layout="wide",
 inject_css()
 render_sidebar()
 
+st.markdown("<h1>Hormuz Decomposition</h1>", unsafe_allow_html=True)
+
 PLOT = dict(
     template="plotly_dark",
     paper_bgcolor="rgba(0,0,0,0)",

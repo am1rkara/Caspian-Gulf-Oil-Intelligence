@@ -23,6 +23,8 @@ st.set_page_config(page_title="News Intelligence", layout="wide",
 inject_css()
 render_sidebar()
 
+st.markdown("<h1>News Intelligence</h1>", unsafe_allow_html=True)
+
 # ── Loaders ────────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=3600)
 def load_articles():

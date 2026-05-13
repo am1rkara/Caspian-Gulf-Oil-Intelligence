@@ -26,6 +26,8 @@ st.set_page_config(page_title="Gulf Markets", layout="wide", initial_sidebar_sta
 inject_css()
 render_sidebar()
 
+st.markdown("<h1>Gulf Markets</h1>", unsafe_allow_html=True)
+
 PLOT = dict(
     template="plotly_dark",
     paper_bgcolor="rgba(0,0,0,0)",

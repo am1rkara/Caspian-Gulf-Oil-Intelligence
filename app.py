@@ -377,16 +377,13 @@ fig.add_trace(go.Scattergeo(
     showlegend=False,
 ))
 
-# LNG Terminals
+# LNG Terminals — markers only, labels in right-panel legend (avoid map clutter)
 fig.add_trace(go.Scattergeo(
     lat=[25.9,  25.1,    22.6,      27.5],
     lon=[51.6,  52.9,    59.5,      52.6],
-    mode="markers+text",
-    marker=dict(symbol="circle", size=8, color="#e8eaf0",
+    mode="markers",
+    marker=dict(symbol="circle", size=7, color="#e8eaf0",
                 line=dict(color="#0e1117", width=1)),
-    text=["Ras Laffan", "Das Island", "Oman LNG", "S. Pars"],
-    textposition=["top right", "top right", "top right", "bottom right"],
-    textfont=dict(size=8, color="#e8eaf0", family="Inter, sans-serif"),
     name="LNG Terminals",
     hovertext=[
         "Ras Laffan (Qatar) — world's largest LNG export complex · ~77 MTPA",

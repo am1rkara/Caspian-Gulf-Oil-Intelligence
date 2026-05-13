@@ -32,7 +32,9 @@ section[data-testid="stSidebar"],
     border-right: 1px solid #2d3139 !important;
 }
 
-#MainMenu, footer, [data-testid="stToolbar"] { display: none !important; }
+#MainMenu, footer, [data-testid="stToolbar"],
+header[data-testid="stHeader"],
+[data-testid="stHeader"] { display: none !important; }
 .stMetric { display: none !important; }
 
 hr {
@@ -86,6 +88,7 @@ p, li {
     border-radius: 6px;
     padding: 12px 16px;
     margin: 3px 0;
+    overflow: hidden;
 }
 .mc-l {
     color: #9ca3af;
@@ -170,7 +173,14 @@ details[data-testid="stExpander"] {
 }
 details[data-testid="stExpander"] > summary {
     padding: 8px 14px !important;
+    list-style: none !important;
 }
+details[data-testid="stExpander"] > summary::marker,
+details[data-testid="stExpander"] > summary::-webkit-details-marker {
+    display: none !important;
+    content: none !important;
+}
+[data-testid="stExpanderToggleIcon"] { display: none !important; }
 details[data-testid="stExpander"] > summary p,
 details[data-testid="stExpander"] > summary span {
     font-size: 11px !important;
@@ -202,10 +212,11 @@ details[data-testid="stExpander"] > div li {
     background: #111318;
     border: 1px solid #1e2430;
     border-radius: 4px;
-    padding: 4px 8px;
+    padding: 3px 6px;
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    overflow: hidden;
 }
 
 /* News rows */
@@ -268,7 +279,7 @@ def sparkline_svg(values: list, w: int = 80, h: int = 30) -> str:
         for i, v in enumerate(vals)
     )
     return (
-        f'<svg width="{w}" height="{h}" style="display:block;flex-shrink:0;overflow:visible">'
+        f'<svg width="{w}" height="{h}" style="display:block;flex-shrink:0;overflow:hidden">'
         f'<polyline points="{pts}" fill="none" stroke="{color}" '
         f'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
         f'</svg>'
@@ -287,8 +298,8 @@ def mc_card(label: str, value: str, detail: str = "", spark: str = "",
         )
         value_row = (
             f'<div style="display:flex;align-items:center;'
-            f'justify-content:space-between;gap:10px;">'
-            f'<div class="mc-v {value_cls}">{value}</div>'
+            f'justify-content:space-between;gap:8px;min-width:0;">'
+            f'<div class="mc-v {value_cls}" style="min-width:0;flex:1">{value}</div>'
             f'{boxed}'
             f'</div>'
         )

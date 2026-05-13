@@ -30,6 +30,8 @@ st.set_page_config(page_title="Central Asia", layout="wide", initial_sidebar_sta
 inject_css()
 render_sidebar()
 
+st.markdown("<h1>Central Asia Panel</h1>", unsafe_allow_html=True)
+
 PLOT = dict(
     template="plotly_dark",
     paper_bgcolor="rgba(0,0,0,0)",
@@ -319,43 +321,14 @@ fig_cpc_t.add_annotation(
     xanchor="right", xshift=-4, yshift=7,
 )
 
-# Event lines + labels using paper coordinates so they're always visible
+# Event vertical lines only — labels shown in table below the chart
 event_dates = [(pd.to_datetime(e["date"]), e) for e in _CPC_EVENTS]
-# Three label rows in paper space
-_LABEL_Y = [0.92, 0.78, 0.64]
-_last_y_idx: dict = {}  # track which y row each event uses to stagger
 
-for i, (dt, ev) in enumerate(event_dates):
+for dt, ev in event_dates:
     color = _SEV_COLOR[ev["severity"]]
-    # Determine y row: stagger if previous event is within 75 days
-    if i > 0:
-        prev_dt = event_dates[i - 1][0]
-        prev_row = _last_y_idx.get(i - 1, 0)
-        row = (prev_row + 1) % len(_LABEL_Y) if abs((dt - prev_dt).days) < 75 else 0
-    else:
-        row = 0
-    _last_y_idx[i] = row
-    y_paper = _LABEL_Y[row]
-
     fig_cpc_t.add_vline(
         x=str(dt.date()), line_dash="dash", line_color=color,
-        line_width=1, opacity=0.8,
-    )
-    # Short single-line label with dark background box
-    short = ev["label"].replace("\n", " ")
-    fig_cpc_t.add_annotation(
-        x=str(dt.date()),
-        y=y_paper,
-        xref="x", yref="paper",
-        text=short,
-        showarrow=False,
-        font=dict(size=8, color=color, family="Inter, sans-serif"),
-        align="center",
-        xanchor="center",
-        bgcolor="rgba(14,17,23,0.88)",
-        bordercolor=color,
-        borderwidth=1,
-        borderpad=3,
+        line_width=1.2, opacity=0.85,
     )
 
 fig_cpc_t.update_layout(
@@ -366,9 +339,25 @@ fig_cpc_t.update_layout(
     xaxis=dict(gridcolor=GRID, tickformat="%Y", dtick="M12"),
 )
 st.plotly_chart(fig_cpc_t, use_container_width=True)
+
+# Event legend table
+_event_rows = "".join(
+    f"<div style='display:flex;gap:10px;align-items:baseline;padding:3px 0;"
+    f"border-bottom:1px solid #1a1e2a'>"
+    f"<span style='color:{_SEV_COLOR[ev['severity']]};font-size:10px;font-weight:600;"
+    f"min-width:68px;flex-shrink:0'>{pd.to_datetime(ev['date']).strftime('%b %Y')}</span>"
+    f"<span style='color:#c8ccd8;font-size:11px'>{ev['label'].replace(chr(10), ' ')}</span>"
+    f"</div>"
+    for ev in _CPC_EVENTS
+)
 st.markdown(
-    "<div class='muted'>Vertical lines: Russian-controlled disruption events. "
-    "Red = suspension / court order · Amber = maintenance / restriction · Green = partial normalization.</div>",
+    f"<div style='background:#111318;border:1px solid #1e2430;border-radius:4px;"
+    f"padding:8px 12px;margin-top:4px'>{_event_rows}"
+    f"<div style='color:#6b7280;font-size:10px;margin-top:6px'>"
+    f"<span style='color:#f87171'>■</span> Suspension/court order &nbsp;"
+    f"<span style='color:#f59e0b'>■</span> Maintenance/restriction &nbsp;"
+    f"<span style='color:#4ade80'>■</span> Normalization</div>"
+    f"</div>",
     unsafe_allow_html=True,
 )
 
