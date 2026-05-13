@@ -15,22 +15,30 @@ except ImportError:
 
 MODEL = "llama-3.3-70b-versatile"
 
-SYSTEM_PROMPT = """You are a senior energy market analyst specializing in Gulf/MENA and Central Asian oil markets.
-You write concise, precise intelligence briefs for commodity traders and sovereign wealth fund analysts.
-Write factually, avoid hedging language, and quantify impacts where possible.
-Do not use bullet points — write in flowing analytical prose."""
+SYSTEM_PROMPT = """You are a senior energy market analyst covering Gulf/MENA and Central Asian oil markets.
+Write for commodity traders and sovereign wealth fund analysts.
+Cold institutional language. No dramatic phrasing. Quantify where possible. No hedging."""
 
-BRIEF_PROMPT_TEMPLATE = """Based on the following energy news headlines from the past 24 hours, write a 3-paragraph intelligence brief:
+BRIEF_PROMPT_TEMPLATE = """Based on the following energy news headlines, respond in this exact format — no prose paragraphs:
 
 HEADLINES:
 {headlines}
 
-Write exactly 3 paragraphs:
-Paragraph 1 — GULF/MENA: What moved in Gulf and Middle East energy markets and why. Focus on supply, OPEC+ dynamics, geopolitics.
-Paragraph 2 — CENTRAL ASIA TRANSMISSION: How today's Gulf/global moves land in Kazakhstan and Central Asia. Consider CPC pipeline, Urals discount, KZT impact, fiscal implications.
-Paragraph 3 — WATCH LIST: The 2-3 most important things to monitor in the next 24-48 hours, and what would change your view.
+TODAY'S KEY RISKS
+- [risk 1, one line]
+- [risk 2, one line]
+- [risk 3, one line]
 
-Be specific and analytical. If no major news today, say so plainly and note background structural themes."""
+MARKET IMPACT
+- [impact 1, one line]
+- [impact 2, one line]
+
+WATCH NEXT 24-48H
+- [item 1, one line]
+- [item 2, one line]
+
+Use cold institutional language. No dramatic phrasing. Maximum 8 bullet points total.
+If no significant news, state that plainly and note the dominant background risk."""
 
 
 def generate_brief(articles: list[dict]) -> dict:

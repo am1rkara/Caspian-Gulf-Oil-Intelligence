@@ -1,11 +1,10 @@
 """
 pages/4_KZT_Valuation.py
-KZT/USD fair-value OLS model.
-Fits two regime models (pre/post Feb 2022) and gives a live
-falsifiable fair-value estimate at current Brent.
+KZT/USD multivariate OLS fair-value model.
+Factors: Brent, DXY, RUB/USD. Regime split Feb 2022.
 """
 
-import sys, time
+import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -16,18 +15,16 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
-from scipy import stats
-from datetime import datetime, timezone
 
-from src.style import TERMINAL_CSS
+from src.utils.css import inject_css, sparkline_svg, mc_card
 from src.nav import render_sidebar
-from src.data.market import get_prices, get_brent_history, get_kzt_history
+from src.data.market import get_prices, get_multi_history
+from src.metrics.calculations import multivariate_kzt_ols
 
 st.set_page_config(page_title="KZT Valuation", layout="wide", initial_sidebar_state="expanded")
-st.markdown(TERMINAL_CSS, unsafe_allow_html=True)
+inject_css()
 render_sidebar()
 
-REGIME_DATE = pd.Timestamp("2022-02-24")
 PLOT = dict(
     template="plotly_dark",
     paper_bgcolor="rgba(0,0,0,0)",
@@ -36,288 +33,247 @@ PLOT = dict(
 )
 GRID = "#1e2128"
 
-# ── Auto-refresh (60s — matches ticker) ───────────────────────────────────────
-if "kzt_ts" not in st.session_state:
-    st.session_state.kzt_ts = time.time()
-if time.time() - st.session_state.kzt_ts > 60:
-    st.session_state.kzt_ts = time.time()
-    st.rerun()
-
-# ── Data loaders ───────────────────────────────────────────────────────────────
-@st.cache_data(ttl=3600)
-def load_history():
-    brent_df = get_brent_history(period="5y")
-    kzt_df   = get_kzt_history(period="5y")
-    brent_df["date"] = pd.to_datetime(brent_df["date"])
-    kzt_df["date"]   = pd.to_datetime(kzt_df["date"])
-    df = pd.merge(brent_df, kzt_df, on="date").dropna().sort_values("date").reset_index(drop=True)
-    return df
-
+# ── Loaders ────────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=60)
 def load_live():
     return get_prices()
 
+@st.cache_data(ttl=3600)
+def load_history():
+    return get_multi_history(period="5y")
 
-def fit_ols(x: pd.Series, y: pd.Series) -> dict:
-    slope, intercept, r, _, se = stats.linregress(x, y)
-    fitted    = slope * x + intercept
-    residuals = y - fitted
-    return {
-        "beta":       slope,
-        "intercept":  intercept,
-        "r2":         r ** 2,
-        "resid_std":  float(residuals.std()),
-        "fitted":     fitted,
-        "residuals":  residuals,
-    }
+@st.cache_data(ttl=86400)
+def compute_model():
+    return multivariate_kzt_ols(load_history())
 
-
-def fair_value(model: dict, live_brent: float) -> tuple[float, float, float]:
-    fv    = model["beta"] * live_brent + model["intercept"]
-    upper = fv + model["resid_std"]
-    lower = fv - model["resid_std"]
-    return fv, lower, upper
-
-
-df_all = load_history()
-prices = load_live()
-
+# Fast path: prices (cached 60s)
+prices     = load_live()
 live_brent = prices["brent_spot"]
 live_kzt   = prices["kzt_per_usd"]
+live_dxy   = prices["dxy"]
+live_rub   = prices["rub_per_usd"]
 
-# Regime split
-df_pre  = df_all[df_all["date"] < REGIME_DATE]
-df_post = df_all[df_all["date"] >= REGIME_DATE]
+# Reserve chart slots so KPIs render before slow computation
+chart_slot = st.empty()
+resid_slot = st.empty()
+coef_slot  = st.empty()
+meth_slot  = st.empty()
 
-# Models — do NOT cache (runs every 60s refresh)
-model_pre  = fit_ols(df_pre["brent_usd"],  df_pre["kzt_per_usd"])  if len(df_pre)  > 10 else None
-model_post = fit_ols(
-    df_post["brent_usd"].tail(90),
-    df_post["kzt_per_usd"].tail(90),
-) if len(df_post) > 10 else None
+# Slow path: model (cached 24h)
+with st.spinner(""):
+    model = compute_model()
 
-if model_post is None:
-    st.markdown("<div class='dim'>Insufficient post-2022 data for model.</div>", unsafe_allow_html=True)
+post = model.get("post")
+pre  = model.get("pre")
+
+if post is None:
+    st.markdown("<div class='dim'>Insufficient post-2022 data for model.</div>",
+                unsafe_allow_html=True)
     st.stop()
 
-fv, fv_lower, fv_upper = fair_value(model_post, live_brent)
-deviation     = live_kzt - fv
-deviation_pct = (deviation / fv) * 100
+fv        = (post["alpha"]
+             + post["b_brent"] * live_brent
+             + post["b_dxy"]   * live_dxy
+             + post["b_rub"]   * live_rub)
+sigma     = post["resid_std"]
+deviation = live_kzt - fv
+dev_pct   = (deviation / fv) * 100 if fv > 0 else 0.0
+direction = "cheap" if deviation > 0 else "rich"
 
-# ── Header ─────────────────────────────────────────────────────────────────────
-st.markdown(
-    "<h2 style='color:#e8eaf0;font-weight:700;margin-bottom:2px'>KZT / USD Fair Value</h2>",
-    unsafe_allow_html=True,
-)
-st.markdown(
-    f"<div class='muted'>OLS fair-value model · post-2022 regime · {datetime.now(timezone.utc).strftime('%H:%M UTC')}</div>",
-    unsafe_allow_html=True,
-)
-
-# ── Row 1 — KPI Cards ──────────────────────────────────────────────────────────
+# ── KPI Row ────────────────────────────────────────────────────────────────────
 k1, k2, k3, k4 = st.columns(4)
 
 with k1:
-    st.markdown(f"""<div class='mc'>
-        <div class='mc-l'>Fair Value KZT</div>
-        <div class='mc-v'>{fv:.0f}</div>
-        <div class='mc-d'>At Brent ${live_brent:.0f}</div>
-    </div>""", unsafe_allow_html=True)
+    spark = sparkline_svg(prices.get("spark_kzt", []))
+    st.markdown(
+        mc_card("Fair Value KZT", f"{fv:.0f}",
+                detail=f"Range {fv - sigma:.0f}–{fv + sigma:.0f} · at current factors",
+                spark=spark, value_cls="t1"),
+        unsafe_allow_html=True,
+    )
 
 with k2:
-    st.markdown(f"""<div class='mc'>
-        <div class='mc-l'>Spot KZT / USD</div>
-        <div class='mc-v'>{live_kzt:.0f}</div>
-        <div class='mc-d'>Live (yfinance)</div>
-    </div>""", unsafe_allow_html=True)
+    spark = sparkline_svg(prices.get("spark_kzt", []))
+    st.markdown(
+        mc_card("Spot KZT / USD", f"{live_kzt:.0f}",
+                detail="Live · USDKZT=X",
+                spark=spark, value_cls="t1"),
+        unsafe_allow_html=True,
+    )
 
 with k3:
-    if abs(deviation) > model_post["resid_std"]:
+    if abs(deviation) > sigma:
         dev_cls = "neg" if deviation > 0 else "pos"
     else:
         dev_cls = ""
     st.markdown(f"""<div class='mc'>
         <div class='mc-l'>Deviation vs Fair Value</div>
-        <div class='mc-v {dev_cls}'>{deviation:+.0f}</div>
-        <div class='mc-d {dev_cls}'>{deviation_pct:+.1f}% · {'cheap' if deviation > 0 else 'rich'}</div>
+        <div class='mc-v t2 {dev_cls}'>{deviation:+.0f}</div>
+        <div class='mc-d {dev_cls}'>{dev_pct:+.1f}% · {direction}</div>
     </div>""", unsafe_allow_html=True)
 
 with k4:
+    pre_r2_str = f"{pre['r2']:.2f}" if pre else "N/A"
     st.markdown(f"""<div class='mc'>
-        <div class='mc-l'>Post-2022 Beta (90d)</div>
-        <div class='mc-v'>{model_post['beta']:.3f}</div>
-        <div class='mc-d'>R² = {model_post['r2']:.2f}</div>
+        <div class='mc-l'>Post-2022 R²</div>
+        <div class='mc-v t2'>{post['r2']:.2f}</div>
+        <div class='mc-d'>Pre-2022: {pre_r2_str} · 3-factor model</div>
     </div>""", unsafe_allow_html=True)
 
-# ── Row 2 — Scatter: Brent vs KZT ──────────────────────────────────────────────
-st.markdown("<div class='sec'>Brent vs KZT/USD — OLS Fit</div>", unsafe_allow_html=True)
+# ── Rolling Beta Chart ─────────────────────────────────────────────────────────
+st.markdown("<div class='sec'>Rolling 12M Factor Betas</div>", unsafe_allow_html=True)
 
-fig_scatter = go.Figure()
+with chart_slot.container():
+    rolling = model.get("rolling", pd.DataFrame())
+    if not rolling.empty:
+        fig_beta = go.Figure()
+        fig_beta.add_trace(go.Scatter(
+            x=rolling["date"], y=rolling["b_brent"],
+            name="Brent", mode="lines",
+            line=dict(color="#3b82f6", width=1.5),
+        ))
+        fig_beta.add_trace(go.Scatter(
+            x=rolling["date"], y=rolling["b_dxy"],
+            name="DXY", mode="lines",
+            line=dict(color="#f59e0b", width=1.5),
+        ))
+        fig_beta.add_trace(go.Scatter(
+            x=rolling["date"], y=rolling["b_rub"],
+            name="RUB/USD", mode="lines",
+            line=dict(color="#f87171", width=1.5),
+        ))
+        fig_beta.add_hline(y=0, line_dash="dot", line_color="#374151", line_width=1)
+        fig_beta.add_vline(x="2022-02-24", line_dash="dot",
+                           line_color="#a78bfa", line_width=1)
+        fig_beta.add_annotation(
+            x="2022-02-24", y=0.95, xref="x", yref="paper",
+            text="Feb 2022", showarrow=False, textangle=-90,
+            font=dict(size=9, color="#a78bfa"), xshift=-10,
+        )
+        fig_beta.update_layout(
+            **PLOT, height=250,
+            legend=dict(orientation="h", y=-0.22, font=dict(size=11)),
+            margin=dict(l=0, r=0, t=0, b=0),
+            yaxis=dict(title="beta (KZT / unit)", gridcolor=GRID,
+                       title_font=dict(size=11)),
+            xaxis=dict(gridcolor=GRID),
+        )
+        st.plotly_chart(fig_beta, use_container_width=True)
+        st.markdown(
+            "<div class='muted'>Rolling 12M window · Brent (#3b82f6), DXY (#f59e0b), RUB/USD (#f87171)</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown("<div class='dim'>Insufficient data for rolling beta chart.</div>",
+                    unsafe_allow_html=True)
 
-# Pre-2022 scatter (gray)
-if len(df_pre) > 0:
-    fig_scatter.add_trace(go.Scatter(
-        x=df_pre["brent_usd"], y=df_pre["kzt_per_usd"],
-        mode="markers",
-        marker=dict(color="#374151", size=3, opacity=0.5),
-        name="Pre-Feb 2022",
-        hovertemplate="Brent $%{x:.1f} → KZT %{y:.0f}<extra>Pre-2022</extra>",
-    ))
+# ── Residuals Chart ────────────────────────────────────────────────────────────
+st.markdown("<div class='sec'>Residuals — Actual minus Fitted KZT</div>",
+            unsafe_allow_html=True)
 
-# Post-2022 scatter (blue)
-fig_scatter.add_trace(go.Scatter(
-    x=df_post["brent_usd"], y=df_post["kzt_per_usd"],
-    mode="markers",
-    marker=dict(color="#3b82f6", size=4, opacity=0.65),
-    name="Post-Feb 2022",
-    hovertemplate="Brent $%{x:.1f} → KZT %{y:.0f}<extra>Post-2022</extra>",
-))
+with resid_slot.container():
+    post_dates = post["dates"]
+    post_resid = post["residuals"]
 
-# OLS fitted line (post-2022 90d window)
-x90     = df_post["brent_usd"].tail(90)
-fit_x   = np.linspace(float(x90.min()), float(x90.max()), 100)
-fit_y   = model_post["beta"] * fit_x + model_post["intercept"]
-fit_y_u = fit_y + model_post["resid_std"]
-fit_y_l = fit_y - model_post["resid_std"]
+    if len(post_dates) > 1 and len(post_resid) > 0:
+        max_idx  = int(np.argmax(post_resid))
+        max_date = post_dates[max_idx]
+        max_val  = float(post_resid[max_idx])
 
-fig_scatter.add_trace(go.Scatter(
-    x=fit_x, y=fit_y_u, mode="lines",
-    line=dict(width=0), showlegend=False, hoverinfo="skip",
-))
-fig_scatter.add_trace(go.Scatter(
-    x=fit_x, y=fit_y_l, mode="lines",
-    fill="tonexty", fillcolor="rgba(59,130,246,0.10)",
-    line=dict(width=0), name="±1σ band", hoverinfo="skip",
-))
-fig_scatter.add_trace(go.Scatter(
-    x=fit_x, y=fit_y,
-    mode="lines", line=dict(color="#3b82f6", width=2),
-    name="OLS fit (post-2022 90d)",
-))
+        fig_resid = go.Figure()
+        fig_resid.add_hrect(
+            y0=-sigma, y1=sigma,
+            fillcolor="rgba(59,130,246,0.05)", layer="below", line_width=0
+        )
+        fig_resid.add_trace(go.Scatter(
+            x=list(post_dates), y=[round(v, 0) for v in post_resid],
+            mode="lines", line=dict(color="#a78bfa", width=1.5),
+            name="Residual",
+            hovertemplate="%{x|%b %Y}: %{y:.0f}<extra></extra>",
+        ))
+        fig_resid.add_hline(y=0, line_dash="dash", line_color="#8b8fa8", line_width=1)
+        fig_resid.add_hline(y= sigma, line_dash="dash",
+                             line_color="#f59e0b", line_width=0.8, opacity=0.5)
+        fig_resid.add_hline(y=-sigma, line_dash="dash",
+                             line_color="#f59e0b", line_width=0.8, opacity=0.5)
+        fig_resid.add_annotation(
+            x=max_date, y=max_val,
+            text="2022 sanctions shock",
+            showarrow=False, font=dict(size=10, color="#f87171"),
+            yshift=12,
+        )
+        fig_resid.update_layout(
+            **PLOT, height=220, showlegend=False,
+            margin=dict(l=0, r=0, t=0, b=0),
+            xaxis=dict(gridcolor=GRID, tickformat="%Y", dtick="M12"),
+            yaxis=dict(title="Residual (KZT)", gridcolor=GRID,
+                       title_font=dict(size=11)),
+        )
+        st.plotly_chart(fig_resid, use_container_width=True)
 
-# Current Brent vertical + fair value annotation
-fig_scatter.add_vline(x=live_brent, line_dash="dash", line_color="#f59e0b", line_width=1.5)
-fig_scatter.add_annotation(
-    x=live_brent, y=fv,
-    text=f"FV: {fv:.0f} ±{model_post['resid_std']:.0f}",
-    showarrow=True, arrowhead=2, arrowcolor="#f59e0b",
-    font=dict(size=11, color="#f59e0b"), bgcolor="#0e1117",
-    ax=40, ay=-30,
-)
-# Spot KZT horizontal
-fig_scatter.add_hline(y=live_kzt, line_dash="dot", line_color="#f87171", line_width=1)
-fig_scatter.add_annotation(
-    x=float(x90.max()), y=live_kzt,
-    text=f"Spot: {live_kzt:.0f}",
-    showarrow=False, font=dict(size=10, color="#f87171"),
-    xanchor="right", xshift=-4,
-)
+        with st.expander("Residuals interpretation"):
+            st.markdown(
+                f"Positive: KZT weaker than model implies — possible NBK intervention, "
+                f"capital outflow, or CPC risk premium. "
+                f"Negative: KZT stronger than model — Brent rally lag or NBK suppressing appreciation. "
+                f"±1σ band: ±{sigma:.0f} KZT."
+            )
 
-fig_scatter.update_layout(
-    **PLOT, height=380,
-    legend=dict(orientation="h", y=-0.18, font=dict(size=11)),
-    margin=dict(l=0, r=0, t=0, b=0),
-    xaxis=dict(title="Brent (USD/bbl)", gridcolor=GRID, title_font=dict(size=11)),
-    yaxis=dict(title="KZT per USD", gridcolor=GRID, title_font=dict(size=11)),
-)
-st.plotly_chart(fig_scatter, use_container_width=True)
-st.markdown(
-    "<div class='muted'>yfinance: BZ=F, USDKZT=X · OLS fit on most recent 90 trading days post-2022</div>",
-    unsafe_allow_html=True,
-)
+# ── Coefficient Ranges ─────────────────────────────────────────────────────────
+with coef_slot.container():
+    st.markdown("<div class='sec'>Model Coefficients — Post-2022 Regime</div>",
+                unsafe_allow_html=True)
 
-# ── Row 3 — Residual Time Series ───────────────────────────────────────────────
-st.markdown("<div class='sec'>Residuals — Actual minus Fitted KZT</div>", unsafe_allow_html=True)
-st.markdown(
-    "<div class='dim'>Positive = KZT weaker than model implies (possible NBK intervention, capital outflow, or CPC risk premium). "
-    "Negative = KZT stronger than model implies.</div>",
-    unsafe_allow_html=True,
-)
+    def _rng(b: float, se: float) -> str:
+        return f"{b - se:.2f} to {b + se:.2f}"
 
-post_fitted_full = model_post["beta"] * df_post["brent_usd"] + model_post["intercept"]
-resid_full       = df_post["kzt_per_usd"] - post_fitted_full
-sigma            = model_post["resid_std"]
+    dominant = "RUB/USD" if abs(post["b_rub"]) > abs(post["b_brent"]) else "Brent"
+    pre_note = (
+        f"Pre-2022: Brent β {pre['b_brent']:.2f} ± {pre['se_brent']:.2f}, "
+        f"R² = {pre['r2']:.2f}"
+    ) if pre else "Pre-2022 data unavailable"
 
-fig_resid = go.Figure()
-
-# ±1σ shading
-fig_resid.add_hrect(y0=-sigma, y1=sigma, fillcolor="rgba(59,130,246,0.06)",
-                    layer="below", line_width=0)
-
-# Amber shading for |residual| > 1σ
-above = resid_full[resid_full > sigma]
-below = resid_full[resid_full < -sigma]
-if not above.empty:
-    fig_resid.add_trace(go.Scatter(
-        x=df_post.loc[above.index, "date"], y=above,
-        mode="markers", marker=dict(color="#f59e0b", size=4),
-        name="|ε| > 1σ (weak)", hoverinfo="x+y",
-    ))
-if not below.empty:
-    fig_resid.add_trace(go.Scatter(
-        x=df_post.loc[below.index, "date"], y=below,
-        mode="markers", marker=dict(color="#4ade80", size=4),
-        name="|ε| > 1σ (strong)", hoverinfo="x+y",
-    ))
-
-fig_resid.add_trace(go.Scatter(
-    x=df_post["date"], y=resid_full,
-    mode="lines", line=dict(color="#a78bfa", width=1.5),
-    name="Residual (KZT)", hoverinfo="x+y",
-))
-fig_resid.add_hline(y=0, line_dash="dot", line_color="#374151", line_width=1.5)
-fig_resid.add_hline(y=sigma,  line_dash="dash", line_color="#f59e0b", line_width=1, opacity=0.5)
-fig_resid.add_hline(y=-sigma, line_dash="dash", line_color="#f59e0b", line_width=1, opacity=0.5)
-
-# Annotate large spikes
-spike_threshold = sigma * 1.8
-for idx in resid_full[resid_full.abs() > spike_threshold].index:
-    d   = df_post.loc[idx, "date"]
-    val = resid_full[idx]
-    fig_resid.add_annotation(
-        x=d, y=val,
-        text="NBK intervention?" if val > 0 else "Brent rally lag",
-        showarrow=False, font=dict(size=8, color="#f59e0b"),
-        yshift=10 if val > 0 else -14,
-    )
-
-fig_resid.update_layout(
-    **PLOT, height=260,
-    legend=dict(orientation="h", y=-0.22, font=dict(size=11)),
-    margin=dict(l=0, r=0, t=0, b=0),
-    xaxis=dict(gridcolor=GRID),
-    yaxis=dict(title="KZT residual", gridcolor=GRID, title_font=dict(size=11)),
-)
-st.plotly_chart(fig_resid, use_container_width=True)
-
-# ── Row 4 — Interpretation Card ────────────────────────────────────────────────
-direction = "cheap" if deviation > 0 else "rich"
-within_band = abs(deviation) <= sigma
-pre_beta_str = f"{model_pre['beta']:.2f}" if model_pre else "N/A"
-pre_r2_str   = f"{model_pre['r2']:.2f}"  if model_pre else "N/A"
-
-if within_band:
-    signal_line = "Spot is within the 1σ confidence band — no significant mispricing detected."
-else:
-    poss = ("NBK reserve accumulation, CPC disruption risk premium, or capital flow pressure."
-            if deviation > 0
-            else "Brent rally not yet fully transmitted to KZT, or NBK suppressing appreciation.")
-    signal_line = f"Possible explanations: {poss}"
-
-st.markdown(f"""
+    st.markdown(f"""
 <div style='background:#1c1f26;border:1px solid #2d3139;border-left:4px solid #a78bfa;
-border-radius:4px;padding:18px 22px;color:#c8ccd8;font-size:13px;line-height:1.9'>
-<span style='color:#8b8fa8;font-size:9px;text-transform:uppercase;letter-spacing:0.08em'>Model Interpretation</span><br><br>
-<span style='color:#6b7280'>Pre-2022 β = </span><span style='color:#3b82f6;font-weight:600'>{pre_beta_str}</span>
-<span style='color:#6b7280'> — managed float, NBK smoothed FX volatility against oil moves.</span><br>
-<span style='color:#6b7280'>Post-2022 β = </span><span style='color:#f87171;font-weight:600'>{model_post['beta']:.2f}</span>
-<span style='color:#6b7280'> — oil-FX linkage shifted after sanctions shock; KZT more market-driven.</span><br>
-<span style='color:#6b7280'>R² = </span><span style='color:#e8eaf0;font-weight:600'>{model_post['r2']:.2f}</span>
-<span style='color:#6b7280'> — Brent explains {model_post['r2']*100:.0f}% of KZT/USD variance post-2022.</span><br><br>
-At Brent <span style='color:#f59e0b;font-weight:600'>${live_brent:.0f}</span>,
-fair value is <span style='color:#e8eaf0;font-weight:600'>{fv:.0f} ± {sigma:.0f} KZT/USD</span>.
-Spot at <span style='color:#e8eaf0;font-weight:600'>{live_kzt:.0f}</span> is
-<span style='color:{"#f87171" if deviation > 0 else "#4ade80"};font-weight:600'>{deviation:+.0f} tenge {direction}</span> vs model.<br>
-<span style='color:#8b8fa8'>{signal_line}</span>
+border-radius:4px;padding:16px 20px;color:#c8ccd8;font-size:13px;line-height:1.9'>
+<span style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
+letter-spacing:0.08em'>Post-2022 coefficients (±1 SE)</span><br><br>
+<span style='color:#3b82f6;font-weight:600'>Brent</span>
+<span style='color:#6b7280'> β = </span>
+<span style='color:#e8eaf0'>{_rng(post['b_brent'], post['se_brent'])}</span>
+<span style='color:#6b7280'> KZT per $/bbl</span><br>
+<span style='color:#f59e0b;font-weight:600'>DXY</span>
+<span style='color:#6b7280'> β = </span>
+<span style='color:#e8eaf0'>{_rng(post['b_dxy'], post['se_dxy'])}</span>
+<span style='color:#6b7280'> KZT per DXY point</span><br>
+<span style='color:#f87171;font-weight:600'>RUB/USD</span>
+<span style='color:#6b7280'> β = </span>
+<span style='color:#e8eaf0'>{_rng(post['b_rub'], post['se_rub'])}</span>
+<span style='color:#6b7280'> KZT per ruble/dollar</span><br><br>
+<span style='color:#e8eaf0;font-weight:600'>R² = {post['r2']:.2f}</span>
+<span style='color:#6b7280'> — {dominant} is the dominant post-2022 driver of KZT. {pre_note}.</span><br><br>
+At Brent <span style='color:#f59e0b'>${live_brent:.0f}</span>
+/ DXY <span style='color:#f59e0b'>{live_dxy:.0f}</span>
+/ RUB <span style='color:#f59e0b'>{live_rub:.0f}</span>,
+fair value <span style='color:#e8eaf0;font-weight:600'>{fv:.0f} ± {sigma:.0f}</span>.
+Spot <span style='color:#e8eaf0'>{live_kzt:.0f}</span> is
+<span style='color:{"#f87171" if deviation > 0 else "#4ade80"};font-weight:600'>{deviation:+.0f} tenge {direction}</span>.
 </div>
 """, unsafe_allow_html=True)
+
+# ── Methodology ────────────────────────────────────────────────────────────────
+with meth_slot.container():
+    with st.expander("Methodology"):
+        st.markdown(f"""
+**Model:** OLS on monthly-average KZT/USD ~ Brent + DXY + RUB/USD. numpy lstsq, no statsmodels.
+
+**Regime split:** Feb 24 2022. Pre-2022: NBK-managed float with smoothed oil-FX transmission.
+Post-2022: market-driven rate after the sanctions shock forced liberalisation.
+
+**Fair value:** post-2022 coefficients applied to current live factor values.
+±{sigma:.0f} KZT confidence band = ±1σ of post-2022 in-sample residuals.
+
+**Rolling beta:** 12-month rolling window over the full 5-year history.
+
+**Data:** yfinance monthly averages — USDKZT=X, BZ=F, DX-Y.NYB, USDRUB=X.
+""")

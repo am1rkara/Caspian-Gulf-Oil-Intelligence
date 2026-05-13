@@ -8,6 +8,94 @@ import numpy as np
 from scipy import stats
 from src.data.imf import URALS_DISCOUNT, CPC_CAPACITY_KBPD
 
+_REGIME_SPLIT = pd.Timestamp("2022-02-24")
+
+
+def multivariate_kzt_ols(hist: dict) -> dict:
+    """
+    OLS: KZT/USD = alpha + b1*Brent + b2*DXY + b3*RUB + e
+    Uses monthly averages. numpy-only — no statsmodels.
+    hist: dict from get_multi_history(), keys: brent_usd, kzt_per_usd, dxy, rub_per_usd.
+    Returns full-sample and regime models plus rolling 12M betas.
+    """
+
+    def _monthly(df: pd.DataFrame, col: str) -> pd.Series:
+        d = df.copy()
+        d["date"] = pd.to_datetime(d["date"])
+        return d.set_index("date")[col].resample("MS").mean().rename(col)
+
+    brent_m = _monthly(hist["brent_usd"],   "brent_usd")
+    kzt_m   = _monthly(hist["kzt_per_usd"], "kzt_per_usd")
+    dxy_m   = _monthly(hist["dxy"],         "dxy")
+    rub_m   = _monthly(hist["rub_per_usd"], "rub_per_usd")
+
+    df = pd.DataFrame({
+        "brent": brent_m.values,
+        "dxy":   dxy_m.values,
+        "rub":   rub_m.values,
+        "kzt":   kzt_m.values,
+    }, index=brent_m.index).dropna().sort_index()
+
+    if len(df) < 12:
+        return {"error": "insufficient data", "data": df}
+
+    def _fit(sub: pd.DataFrame):
+        if len(sub) < 8:
+            return None
+        X = np.column_stack([np.ones(len(sub)), sub["brent"].values,
+                             sub["dxy"].values,   sub["rub"].values])
+        y = sub["kzt"].values
+        coefs, _, _, _ = np.linalg.lstsq(X, y, rcond=None)
+        resid = y - X @ coefs
+        n, k = X.shape
+        mse = np.sum(resid ** 2) / max(n - k, 1)
+        try:
+            cov = mse * np.linalg.inv(X.T @ X)
+            se  = np.sqrt(np.diag(cov))
+        except np.linalg.LinAlgError:
+            se = np.zeros(k)
+        ss_tot = np.sum((y - y.mean()) ** 2)
+        r2 = float(1.0 - np.sum(resid ** 2) / max(ss_tot, 1e-10))
+        return {
+            "alpha":    float(coefs[0]),
+            "b_brent":  float(coefs[1]),
+            "b_dxy":    float(coefs[2]),
+            "b_rub":    float(coefs[3]),
+            "se_alpha": float(se[0]),
+            "se_brent": float(se[1]),
+            "se_dxy":   float(se[2]),
+            "se_rub":   float(se[3]),
+            "r2":       round(max(0.0, r2), 3),
+            "resid_std": float(np.std(resid, ddof=1)),
+            "residuals": resid,
+            "fitted":    X @ coefs,
+            "dates":     list(sub.index),
+            "n":         n,
+        }
+
+    full = _fit(df)
+    pre  = _fit(df[df.index <  _REGIME_SPLIT])
+    post = _fit(df[df.index >= _REGIME_SPLIT])
+
+    # Rolling 12M betas
+    window = 12
+    roll_records = []
+    for i in range(window, len(df)):
+        w = df.iloc[i - window:i]
+        r = _fit(w)
+        if r:
+            roll_records.append({
+                "date":    df.index[i],
+                "b_brent": r["b_brent"],
+                "b_dxy":   r["b_dxy"],
+                "b_rub":   r["b_rub"],
+            })
+    rolling = pd.DataFrame(roll_records) if roll_records else pd.DataFrame(
+        columns=["date", "b_brent", "b_dxy", "b_rub"]
+    )
+
+    return {"full": full, "pre": pre, "post": post, "data": df, "rolling": rolling}
+
 
 def urals_proxy(brent: float) -> float:
     """Current Urals realized price using post-2022 sanctions regime discount."""

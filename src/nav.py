@@ -93,7 +93,6 @@ def render_sidebar():
     """Call once at the top of every page."""
     st.markdown(_NAV_CSS, unsafe_allow_html=True)
     with st.sidebar:
-        st.markdown("<div class='nav-section-label'>Pages</div>", unsafe_allow_html=True)
         st.page_link("app.py",                             label="Overview")
         st.page_link("pages/1_News_Intelligence.py",       label="News Intelligence")
         st.page_link("pages/2_Gulf_Quant_Panel.py",        label="Gulf Markets")

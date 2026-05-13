@@ -15,7 +15,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 
-from src.style import TERMINAL_CSS
+from src.utils.css import inject_css, sparkline_svg, mc_card
 from src.nav import render_sidebar
 from src.data.market import get_prices
 from src.data.eia import get_production
@@ -23,7 +23,7 @@ from src.data.imf import IMF_BREAKEVENS_USD, OPEC_QUOTAS_KBPD, URALS_DISCOUNT
 from src.metrics.calculations import urals_proxy, brent_wti_spread, opec_gap
 
 st.set_page_config(page_title="Gulf Markets", layout="wide", initial_sidebar_state="expanded")
-st.markdown(TERMINAL_CSS, unsafe_allow_html=True)
+inject_css()
 render_sidebar()
 
 PLOT = dict(
@@ -34,16 +34,8 @@ PLOT = dict(
 )
 GRID = "#1e2128"
 
-def mc(label, value, delta=None, delta_label="", pos_good=True):
-    d = ""
-    if delta is not None:
-        sign = "+" if delta > 0 else ""
-        cls  = "pos" if (delta > 0) == pos_good else "neg"
-        d = f"<div class='mc-d {cls}'>{sign}{delta} {delta_label}</div>"
-    return f"<div class='mc'><div class='mc-l'>{label}</div><div class='mc-v'>{value}</div>{d}</div>"
-
 # ── Loaders ────────────────────────────────────────────────────────────────────
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=60)
 def load_prices():
     return get_prices()
 
@@ -59,15 +51,6 @@ wti    = prices["wti_spot"]
 spread = brent_wti_spread(brent, wti)
 urals  = urals_proxy(brent)
 
-# ── Header ─────────────────────────────────────────────────────────────────────
-st.markdown(
-    "<h2 style='color:#e8eaf0;font-weight:700;margin-bottom:2px'>Middle East & Gulf Markets</h2>",
-    unsafe_allow_html=True,
-)
-st.markdown(
-    f"<div class='muted'>{prices.get('fetched_at', '—')}</div>",
-    unsafe_allow_html=True,
-)
 if prices.get("data_stale"):
     st.markdown(
         f"<div class='stale'>{prices.get('stale_reason', 'Market data unavailable')}</div>",
@@ -76,33 +59,46 @@ if prices.get("data_stale"):
 
 # ── KPI Row ────────────────────────────────────────────────────────────────────
 k1, k2, k3, k4, k5 = st.columns(5)
+
 with k1:
-    st.markdown(mc("Brent Spot", f"${brent:.2f}"), unsafe_allow_html=True)
-    st.page_link("pages/5_Hormuz_Decomposition.py", label="→ Brent spike decomposition")
-with k2: st.markdown(mc("WTI Spot",   f"${wti:.2f}"),   unsafe_allow_html=True)
-with k3:
-    cls = "neg" if spread < 0 else "pos"
+    spark = sparkline_svg(prices.get("spark_brent", []))
     st.markdown(
-        f"<div class='mc'><div class='mc-l'>WTI–Brent</div>"
-        f"<div class='mc-v {cls}'>{spread:+.2f}</div></div>",
+        mc_card("Brent Spot", f"${brent:.1f}", spark=spark, value_cls="t1"),
         unsafe_allow_html=True,
     )
+    st.page_link("pages/5_Hormuz_Decomposition.py", label="Brent spike decomposition")
+
+with k2:
+    spark = sparkline_svg(prices.get("spark_wti", []))
+    st.markdown(
+        mc_card("WTI Spot", f"${wti:.1f}", spark=spark, value_cls="t1"),
+        unsafe_allow_html=True,
+    )
+
+with k3:
+    spark = sparkline_svg(prices.get("spark_spread", []))
+    st.markdown(
+        mc_card("WTI–Brent", f"{spread:+.1f}", spark=spark, value_cls="t2"),
+        unsafe_allow_html=True,
+    )
+
 with k4:
     st.markdown(
-        mc("Urals Proxy", f"${urals:.2f}",
-           delta=round(-URALS_DISCOUNT["post_2022"], 1),
-           delta_label="/bbl vs Brent", pos_good=False),
+        mc_card("Urals Proxy",
+                f"~${urals:.0f}",
+                detail=f"–${URALS_DISCOUNT['post_2022']:.0f}/bbl vs Brent",
+                value_cls="t2"),
         unsafe_allow_html=True,
     )
+
 with k5:
-    st.markdown(mc("Updated", prices.get("fetched_at", "—")), unsafe_allow_html=True)
+    st.markdown(
+        mc_card("Updated", prices.get("fetched_at", "—"), value_cls="t2"),
+        unsafe_allow_html=True,
+    )
 
 # ── OPEC+ Compliance ───────────────────────────────────────────────────────────
 st.markdown("<div class='sec'>OPEC+ Production vs Quota</div>", unsafe_allow_html=True)
-st.markdown(
-    "<div class='dim'>Monthly production vs Jan 2025 quotas. Green = compliant.</div>",
-    unsafe_allow_html=True,
-)
 
 prod_latest = {c: production[c]["latest_kbpd"] for c in production}
 gaps        = opec_gap(prod_latest, OPEC_QUOTAS_KBPD)
@@ -118,10 +114,11 @@ fig_opec.add_trace(go.Bar(
     x=countries,
     y=[gaps[c]["production"] for c in countries],
     name="Production",
-    marker_color=["#f87171" if not gaps[c]["compliant"] else "#4ade80" for c in countries],
+    marker_color=["#f87171" if not gaps[c]["compliant"] else "#4ade80"
+                  for c in countries],
 ))
 fig_opec.update_layout(
-    **PLOT, height=300, barmode="overlay",
+    **PLOT, height=250, barmode="overlay",
     legend=dict(orientation="h", y=-0.22, font=dict(size=11)),
     margin=dict(l=0, r=0, t=0, b=0),
     yaxis=dict(title="kbd", gridcolor=GRID, title_font=dict(size=11)),
@@ -129,10 +126,17 @@ fig_opec.update_layout(
 )
 st.plotly_chart(fig_opec, use_container_width=True)
 st.markdown(
-    "<div class='muted'>EIA API production · Quota baseline: OPEC+ Ministerial Meeting Dec 2024 (effective Jan 2025). "
-    "Quotas remain in force until revised at the next ministerial — this is the correct benchmark for compliance assessment.</div>",
+    "<div class='muted'>EIA API production · Quota baseline: OPEC+ Dec 2024 meeting (effective Jan 2025).</div>",
     unsafe_allow_html=True,
 )
+
+with st.expander("Methodology — OPEC+ compliance"):
+    st.markdown(
+        "Compliance threshold: production within 50 kbd of quota. "
+        "Quota baseline: OPEC+ Ministerial Meeting Dec 2024, effective Jan 2025. "
+        "Quotas remain in force until revised at the next ministerial. "
+        "Production: EIA API monthly, most recent available month."
+    )
 
 # ── Fiscal Breakeven vs Brent ──────────────────────────────────────────────────
 st.markdown("<div class='sec'>Fiscal Breakeven vs Live Brent</div>", unsafe_allow_html=True)
@@ -143,7 +147,8 @@ st.markdown(
 
 countries_f  = list(IMF_BREAKEVENS_USD.keys())
 breakevens_f = [IMF_BREAKEVENS_USD[c] for c in countries_f]
-bar_colors_f = ["#4ade80" if IMF_BREAKEVENS_USD[c] <= brent else "#f87171" for c in countries_f]
+bar_colors_f = ["#4ade80" if IMF_BREAKEVENS_USD[c] <= brent else "#f87171"
+                for c in countries_f]
 
 fig_fiscal = go.Figure()
 fig_fiscal.add_trace(go.Bar(
@@ -158,23 +163,19 @@ fig_fiscal.add_annotation(
     xanchor="left", xshift=8,
 )
 fig_fiscal.update_layout(
-    **PLOT, height=260,
+    **PLOT, height=230,
     margin=dict(l=0, r=0, t=0, b=0), showlegend=False,
     xaxis=dict(title="USD/bbl", gridcolor=GRID, title_font=dict(size=11)),
     yaxis=dict(gridcolor=GRID),
 )
 st.plotly_chart(fig_fiscal, use_container_width=True)
 st.markdown(
-    "<div class='muted'>IMF World Economic Outlook 2025</div>",
+    "<div class='muted'>IMF World Economic Outlook 2025.</div>",
     unsafe_allow_html=True,
 )
 
 # ── Urals–Brent Spread ─────────────────────────────────────────────────────────
 st.markdown("<div class='sec'>Urals–Brent Spread</div>", unsafe_allow_html=True)
-st.markdown(
-    "<div class='dim'>Post-2022 sanctions created a structural discount vs Brent that KZ CPC exports absorb directly.</div>",
-    unsafe_allow_html=True,
-)
 
 _urals_data = [
     ("2019-01", -1.8), ("2019-04", -1.2), ("2019-07", -1.5), ("2019-10", -2.1),
@@ -192,15 +193,15 @@ ud["date"] = pd.to_datetime(ud["date"])
 
 fig_u = go.Figure()
 fig_u.add_vrect(x0="2019-01-01", x1="2022-02-24",
-    fillcolor="#4ade80", opacity=0.03, layer="below", line_width=0)
+                fillcolor="#4ade80", opacity=0.03, layer="below", line_width=0)
 fig_u.add_vrect(x0="2022-02-24", x1="2022-12-05",
-    fillcolor="#f87171", opacity=0.06, layer="below", line_width=0)
+                fillcolor="#f87171", opacity=0.06, layer="below", line_width=0)
 fig_u.add_vrect(x0="2022-12-05", x1="2025-06-01",
-    fillcolor="#f59e0b", opacity=0.04, layer="below", line_width=0)
+                fillcolor="#f59e0b", opacity=0.04, layer="below", line_width=0)
 for x_pos, label, color in [
-    ("2019-09-01", "Pre-war",        "#4ade80"),
-    ("2022-03-20", "Sanctions shock", "#f87171"),
-    ("2023-02-01", "Price cap",       "#f59e0b"),
+    ("2019-09-01", "Pre-war",         "#4ade80"),
+    ("2022-03-20", "Sanctions shock",  "#f87171"),
+    ("2023-02-01", "Price cap",        "#f59e0b"),
 ]:
     fig_u.add_annotation(
         x=x_pos, y=0.95, xref="x", yref="paper",
@@ -209,17 +210,17 @@ for x_pos, label, color in [
     )
 fig_u.add_trace(go.Scatter(
     x=ud["date"], y=ud["spread"],
-    fill="tozeroy", line=dict(color="#f87171", width=1.8),
+    fill="tozeroy", line=dict(color="#f87171", width=1.5),
     fillcolor="rgba(248,113,113,0.10)", name="Urals–Brent ($/bbl)",
 ))
 fig_u.add_vline(x="2022-02-24", line_dash="dot", line_color="#f87171", line_width=1)
 fig_u.add_annotation(x="2022-02-24", y=0.5, xref="x", yref="paper",
-    text="Feb 24 invasion", showarrow=False, textangle=-90,
-    font=dict(size=9, color="#f87171"), xshift=-10)
+                     text="Feb 24 invasion", showarrow=False, textangle=-90,
+                     font=dict(size=9, color="#f87171"), xshift=-10)
 fig_u.add_vline(x="2022-12-05", line_dash="dot", line_color="#f59e0b", line_width=1)
 fig_u.add_annotation(x="2022-12-05", y=0.5, xref="x", yref="paper",
-    text="G7 $60 cap", showarrow=False, textangle=-90,
-    font=dict(size=9, color="#f59e0b"), xshift=-10)
+                     text="G7 $60 cap", showarrow=False, textangle=-90,
+                     font=dict(size=9, color="#f59e0b"), xshift=-10)
 fig_u.add_hline(
     y=-URALS_DISCOUNT["post_2022"],
     line_dash="dash", line_color="#a78bfa", line_width=1,
@@ -230,13 +231,23 @@ fig_u.add_annotation(
     showarrow=False, font=dict(size=10, color="#a78bfa"), xanchor="right",
 )
 fig_u.update_layout(
-    **PLOT, height=280,
+    **PLOT, height=250,
     margin=dict(l=0, r=0, t=0, b=0),
     yaxis=dict(title="$/bbl", gridcolor=GRID, title_font=dict(size=11)),
     legend=dict(orientation="h", y=-0.22, font=dict(size=11)),
 )
 st.plotly_chart(fig_u, use_container_width=True)
 st.markdown(
-    "<div class='muted'>Proxy: Brent minus $15 post-sanctions discount. Argus/Platts through Q1 2025.</div>",
+    "<div class='muted'>Proxy: Brent minus post-sanctions structural discount. "
+    "Argus/Platts through Q1 2025.</div>",
     unsafe_allow_html=True,
 )
+
+with st.expander("Methodology — Urals proxy"):
+    st.markdown(
+        f"Urals proxy = Brent spot minus ${URALS_DISCOUNT['post_2022']}/bbl structural discount. "
+        "Pre-2022 discount was ~$3/bbl (quality differential). "
+        "Post-sanctions discount peaked at ~$35/bbl mid-2022 and normalised to ~$13–15/bbl "
+        "after the G7 $60/bbl price cap (Dec 2022). "
+        "Current proxy uses the stabilised post-cap level as structural baseline."
+    )

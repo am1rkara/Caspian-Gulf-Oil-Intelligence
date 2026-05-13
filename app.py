@@ -17,7 +17,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from datetime import datetime, timezone
 
-from src.style import TERMINAL_CSS
+from src.utils.css import inject_css, sparkline_svg
 from src.nav import render_sidebar
 from src.data.market import get_prices
 from src.metrics.hormuz import get_hormuz_status
@@ -30,7 +30,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-st.markdown(TERMINAL_CSS, unsafe_allow_html=True)
+inject_css()
 render_sidebar()
 st.markdown("""
 <style>
@@ -231,6 +231,8 @@ _hcol  = hormuz["color"]
 _hlvl  = hormuz["level"].lower()
 _disc  = URALS_DISCOUNT["post_2022"]
 _fbuf  = fiscal["buffer_bn"]
+_fbuf_lo  = max(0, round(_fbuf - 2))
+_fbuf_hi  = round(_fbuf + 2)
 _fbuf_cls  = "rgba(74,222,128,0.12)" if _fbuf >= 0 else "rgba(248,113,113,0.12)"
 _fbuf_tcls = "#4ade80" if _fbuf >= 0 else "#f87171"
 st.markdown(f"""
@@ -244,20 +246,20 @@ Kazakhstan earns ~80% of its oil export revenue through a single Russian-control
 pipeline — the CPC corridor to Novorossiysk. When the Strait of Hormuz tightens,
 <b style='color:#e8eaf0'>Brent spikes and KZ fiscal revenue improves</b>, but structural limits cap the upside:
 CPC exports price off Urals (currently –${_disc:.0f}/bbl vs Brent), Russia has blocked pipeline
-expansion, and route concentration creates a geopolitical vulnerability that is
+expansion, and route concentration creates a geopolitical exposure that is
 <b style='color:#e8eaf0'>structural, not episodic.</b>
 </p>
 <p style='font-size:14px;line-height:1.7;color:#c8ccd8;margin:0 0 14px'>
 This terminal tracks that transmission mechanism in real time — Gulf chokepoint risk,
 OPEC+ compliance, CPC throughput, KZT fair value, and the fiscal buffer between
-Kazakhstan and a revenue crisis.
+Kazakhstan and a revenue shortfall.
 </p>
 <div style='border-top:1px solid #2d3139;padding-top:12px;display:flex;flex-wrap:wrap;gap:8px;font-size:12px'>
 <span style='padding:4px 10px;border-radius:4px;background:rgba({"74,222,128" if hormuz["level"]=="NORMAL" else "245,158,11" if hormuz["level"]=="ELEVATED" else "248,113,113"},0.12);
 color:{_hcol};font-weight:500'>Hormuz: {_hlvl}</span>
 <span style='padding:4px 10px;border-radius:4px;background:rgba(248,113,113,0.12);color:#f87171;font-weight:500'>CPC: Russia-controlled</span>
 <span style='padding:4px 10px;border-radius:4px;background:rgba(245,158,11,0.12);color:#f59e0b;font-weight:500'>Urals discount: –${_disc:.0f}/bbl</span>
-<span style='padding:4px 10px;border-radius:4px;background:{_fbuf_cls};color:{_fbuf_tcls};font-weight:500'>Fiscal buffer: ${_fbuf:+.1f}B/yr</span>
+<span style='padding:4px 10px;border-radius:4px;background:{_fbuf_cls};color:{_fbuf_tcls};font-weight:500'>Fiscal buffer: ~${_fbuf_lo}–{_fbuf_hi}B/yr</span>
 <span style='padding:4px 10px;border-radius:4px;background:#1a1d24;color:#8b8fa8'>Brent ${brent:.0f} · KZT {kzt:.0f}</span>
 </div>
 </div></div>
@@ -266,14 +268,34 @@ color:{_hcol};font-weight:500'>Hormuz: {_hlvl}</span>
 # ── Ticker (padded) ────────────────────────────────────────────────────────────
 sp_cls     = "neg" if spread < 0 else "pos"
 fiscal_cls = "pos" if fiscal["is_comfortable"] else "neg"
+_buf_lo    = max(0, round(fiscal["buffer_bn"] - 2))
+_buf_hi    = round(fiscal["buffer_bn"] + 2)
+_spark_b   = sparkline_svg(prices.get("spark_brent", []), w=60, h=24)
+_spark_w   = sparkline_svg(prices.get("spark_wti", []),   w=60, h=24)
+_spark_k   = sparkline_svg(prices.get("spark_kzt", []),   w=60, h=24)
 st.markdown(f"""
 <div class='ticker padded'>
-  <div class='t-item'><div class='t-label'>Brent</div><div class='t-val'>${brent:.2f}</div></div>
-  <div class='t-item'><div class='t-label'>WTI</div><div class='t-val'>${wti:.2f}</div></div>
-  <div class='t-item'><div class='t-label'>WTI–Brent</div><div class='t-val {sp_cls}'>{spread:+.2f}</div></div>
-  <div class='t-item'><div class='t-label'>KZT/USD</div><div class='t-val'>{kzt:.0f}</div></div>
-  <div class='t-item'><div class='t-label'>Urals proxy</div><div class='t-val'>${urals:.2f}</div></div>
-  <div class='t-item'><div class='t-label'>KZ fiscal buffer</div><div class='t-val {fiscal_cls}'>${fiscal['buffer_bn']:+.1f}B/yr</div></div>
+  <div class='t-item'>
+    <div class='t-label'>Brent</div>
+    <div style='display:flex;align-items:center;gap:6px'>
+      <div class='t-val'>${brent:.1f}</div>{_spark_b}
+    </div>
+  </div>
+  <div class='t-item'>
+    <div class='t-label'>WTI</div>
+    <div style='display:flex;align-items:center;gap:6px'>
+      <div class='t-val'>${wti:.1f}</div>{_spark_w}
+    </div>
+  </div>
+  <div class='t-item'><div class='t-label'>WTI–Brent</div><div class='t-val {sp_cls}'>{spread:+.1f}</div></div>
+  <div class='t-item'>
+    <div class='t-label'>KZT/USD</div>
+    <div style='display:flex;align-items:center;gap:6px'>
+      <div class='t-val'>{kzt:.0f}</div>{_spark_k}
+    </div>
+  </div>
+  <div class='t-item'><div class='t-label'>Urals proxy</div><div class='t-val'>~${urals:.0f}</div></div>
+  <div class='t-item'><div class='t-label'>KZ fiscal buffer</div><div class='t-val {fiscal_cls}'>~${_buf_lo}–{_buf_hi}B/yr</div></div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -577,8 +599,8 @@ if iso and iso in COUNTRY_META:
     if iso == "KAZ":
         kpis = [
             ("KZT / USD", f"{kzt:.0f}"),
-            ("Urals realized", f"${urals:.2f}/bbl"),
-            ("CPC utilization", f"{cpc['utilization_pct']:.1f}%"),
+            ("Urals realized", f"~${urals:.0f}/bbl"),
+            ("CPC utilization", f"~{round(cpc['utilization_pct'])}%"),
         ]
     elif iso == "KGZ":
         kpis = [
@@ -672,7 +694,3 @@ if top5:
 else:
     st.markdown("<div class='padded dim'>No headlines available.</div>", unsafe_allow_html=True)
 
-# ── Sidebar timestamp ──────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown(f"<div class='muted' style='margin-top:8px'>{datetime.now(timezone.utc).strftime('%H:%M UTC')}</div>",
-                unsafe_allow_html=True)
