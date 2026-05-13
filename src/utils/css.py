@@ -161,6 +161,53 @@ a:hover { color: #93c5fd !important; text-decoration: underline; }
     letter-spacing: -0.01em;
 }
 
+/* Expander — small muted label, consistent body font */
+details[data-testid="stExpander"] {
+    border: 1px solid #252a36 !important;
+    border-radius: 6px !important;
+    background: #161922 !important;
+    margin: 6px 0 !important;
+}
+details[data-testid="stExpander"] > summary {
+    padding: 8px 14px !important;
+}
+details[data-testid="stExpander"] > summary p,
+details[data-testid="stExpander"] > summary span {
+    font-size: 11px !important;
+    color: #8b8fa8 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    font-weight: 500 !important;
+    margin: 0 !important;
+}
+details[data-testid="stExpander"] > div {
+    padding: 4px 16px 12px !important;
+}
+details[data-testid="stExpander"] > div p,
+details[data-testid="stExpander"] > div li {
+    font-size: 12px !important;
+    color: #9ca3af !important;
+    line-height: 1.65 !important;
+}
+/* Fallback for older Streamlit */
+.streamlit-expanderHeader {
+    font-size: 11px !important;
+    color: #8b8fa8 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+}
+
+/* Sparkline box */
+.spark-box {
+    background: #111318;
+    border: 1px solid #1e2430;
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
 /* News rows */
 .nc {
     padding: 9px 0;
@@ -195,7 +242,7 @@ def inject_css() -> None:
     st.markdown(_CSS, unsafe_allow_html=True)
 
 
-def sparkline_svg(values: list, w: int = 100, h: int = 36) -> str:
+def sparkline_svg(values: list, w: int = 80, h: int = 30) -> str:
     """
     Inline SVG sparkline. Returns empty string if fewer than 2 valid data points.
     Color: green if last >= first, red otherwise.
@@ -231,21 +278,28 @@ def sparkline_svg(values: list, w: int = 100, h: int = 36) -> str:
 def mc_card(label: str, value: str, detail: str = "", spark: str = "",
             value_cls: str = "t1") -> str:
     """
-    Render a metric card with optional sparkline.
-    spark: HTML-safe SVG string from sparkline_svg().
+    Render a metric card with optional inline sparkline in a boxed container.
+    spark: SVG string from sparkline_svg().
     """
-    spark_html = (
-        f'<div style="display:flex;align-items:center;justify-content:space-between">'
-        f'<div class="mc-v {value_cls}">{value}</div>'
-        f'{spark}'
-        f'</div>'
-    ) if spark else f'<div class="mc-v {value_cls}">{value}</div>'
+    if spark:
+        boxed = (
+            f'<div class="spark-box">{spark}</div>'
+        )
+        value_row = (
+            f'<div style="display:flex;align-items:center;'
+            f'justify-content:space-between;gap:10px;">'
+            f'<div class="mc-v {value_cls}">{value}</div>'
+            f'{boxed}'
+            f'</div>'
+        )
+    else:
+        value_row = f'<div class="mc-v {value_cls}">{value}</div>'
 
     detail_html = f'<div class="mc-d">{detail}</div>' if detail else ""
     return (
         f'<div class="mc">'
         f'<div class="mc-l">{label}</div>'
-        f'{spark_html}'
+        f'{value_row}'
         f'{detail_html}'
         f'</div>'
     )

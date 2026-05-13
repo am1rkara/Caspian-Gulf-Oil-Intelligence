@@ -303,8 +303,8 @@ fig_cpc_t.add_trace(go.Scatter(
     x=flow_df["date"], y=flow_df["mt_yr"],
     fill="tozeroy",
     line=dict(color="#3b82f6", width=1.5),
-    fillcolor="rgba(59,130,246,0.12)",
-    name="Throughput",
+    fillcolor="rgba(59,130,246,0.10)",
+    name="Throughput (MT/yr)",
     hovertemplate="%{x|%b %Y}: %{y:.1f} MT/yr<extra></extra>",
 ))
 
@@ -316,44 +316,59 @@ fig_cpc_t.add_annotation(
     x=flow_df["date"].max(), y=67,
     text="Nameplate 67 MT/yr",
     showarrow=False, font=dict(size=9, color="#f87171"),
-    xanchor="right", xshift=-4, yshift=6,
+    xanchor="right", xshift=-4, yshift=7,
 )
 
-# Event lines + staggered labels
+# Event lines + labels using paper coordinates so they're always visible
 event_dates = [(pd.to_datetime(e["date"]), e) for e in _CPC_EVENTS]
-label_heights = {}
+# Three label rows in paper space
+_LABEL_Y = [0.92, 0.78, 0.64]
+_last_y_idx: dict = {}  # track which y row each event uses to stagger
+
 for i, (dt, ev) in enumerate(event_dates):
-    base_y = 72
-    # Stagger if within 60 days of previous event
+    color = _SEV_COLOR[ev["severity"]]
+    # Determine y row: stagger if previous event is within 75 days
     if i > 0:
         prev_dt = event_dates[i - 1][0]
-        if abs((dt - prev_dt).days) < 60:
-            base_y = label_heights.get(i - 1, 72) + 7
-    label_heights[i] = base_y
+        prev_row = _last_y_idx.get(i - 1, 0)
+        row = (prev_row + 1) % len(_LABEL_Y) if abs((dt - prev_dt).days) < 75 else 0
+    else:
+        row = 0
+    _last_y_idx[i] = row
+    y_paper = _LABEL_Y[row]
 
-    color = _SEV_COLOR[ev["severity"]]
     fig_cpc_t.add_vline(
-        x=str(dt.date()), line_dash="dash", line_color=color, line_width=1,
+        x=str(dt.date()), line_dash="dash", line_color=color,
+        line_width=1, opacity=0.8,
     )
+    # Short single-line label with dark background box
+    short = ev["label"].replace("\n", " ")
     fig_cpc_t.add_annotation(
-        x=str(dt.date()), y=label_heights[i],
-        xref="x", yref="y",
-        text=ev["label"].replace("\n", "<br>"),
-        showarrow=False, font=dict(size=9, color=color),
-        align="center", xanchor="center",
+        x=str(dt.date()),
+        y=y_paper,
+        xref="x", yref="paper",
+        text=short,
+        showarrow=False,
+        font=dict(size=8, color=color, family="Inter, sans-serif"),
+        align="center",
+        xanchor="center",
+        bgcolor="rgba(14,17,23,0.88)",
+        bordercolor=color,
+        borderwidth=1,
+        borderpad=3,
     )
 
 fig_cpc_t.update_layout(
-    **PLOT, height=320, showlegend=False,
-    margin=dict(l=0, r=0, t=30, b=0),
+    **PLOT, height=300, showlegend=False,
+    margin=dict(l=0, r=0, t=10, b=0),
     yaxis=dict(title="MT/yr", gridcolor=GRID, title_font=dict(size=11),
-               range=[40, 85]),
+               range=[40, 72]),
     xaxis=dict(gridcolor=GRID, tickformat="%Y", dtick="M12"),
 )
 st.plotly_chart(fig_cpc_t, use_container_width=True)
 st.markdown(
-    "<div class='muted'>Vertical lines mark Russian-controlled disruption events. "
-    "Red = suspension/court order. Amber = maintenance/restriction. Green = partial.</div>",
+    "<div class='muted'>Vertical lines: Russian-controlled disruption events. "
+    "Red = suspension / court order · Amber = maintenance / restriction · Green = partial normalization.</div>",
     unsafe_allow_html=True,
 )
 
