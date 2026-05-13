@@ -285,18 +285,18 @@ Low R² reflects active NBK FX management reducing mechanical oil-FX linkage. Es
 # ── Methodology ────────────────────────────────────────────────────────────────
 with st.expander("Methodology"):
     st.markdown(f"""
-**Model:** OLS on monthly-average KZT/USD ~ Brent + DXY + RUB/USD. numpy lstsq, no statsmodels.
+**Model:** Ordinary least squares regression of monthly-average KZT/USD on Brent, DXY, and RUB/USD.
 
-**Regime split:** Feb 24 2022. Pre-2022: NBK-managed float with smoothed oil-FX transmission.
-Post-2022: market-driven rate after the sanctions shock forced liberalisation.
+**Regime split:** 24 Feb 2022. Pre-2022 reflects NBK-managed float with dampened oil-FX pass-through.
+Post-2022 reflects the market-determined rate after the sanctions shock.
 
-**Fair value:** post-2022 coefficients applied to current live factor values.
-±{sigma:.0f} KZT confidence band = ±1σ of post-2022 in-sample residuals.
+**Fair value:** post-2022 coefficients applied to current live inputs.
+Confidence band is ±{sigma:.0f} KZT, equal to ±1 standard deviation of post-2022 residuals.
 
-**RUB/USD:** If coefficient CI crosses zero (|β| < 1.96 × SE), factor is statistically insignificant.
-Post-2022 RUB insignificance is consistent with NBK actively managing KZT independently of RUB.
+**RUB/USD:** Flagged insignificant when the 95% confidence interval crosses zero (t-stat below 1.96).
+Post-2022 RUB insignificance is consistent with NBK managing KZT independently of the ruble.
 
-**Rolling beta:** 12-month rolling window over the full 5-year history.
+**Rolling beta:** 12-month rolling window across the full 5-year history.
 
 **Data:** yfinance monthly averages — USDKZT=X, BZ=F, DX-Y.NYB, USDRUB=X.
 """)

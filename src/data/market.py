@@ -51,12 +51,15 @@ def get_prices() -> dict:
         if close.empty:
             raise ValueError("empty download")
 
-        latest = close.iloc[-1]
-        brent = _safe_float(latest.get(BRENT_TICKER), FALLBACK["brent_spot"])
-        wti   = _safe_float(latest.get(WTI_TICKER),   FALLBACK["wti_spot"])
-        kzt   = _safe_float(latest.get(KZT_TICKER),   FALLBACK["kzt_per_usd"])
-        dxy   = _safe_float(latest.get(DXY_TICKER),   FALLBACK["dxy"])
-        rub   = _safe_float(latest.get(RUB_TICKER),   FALLBACK["rub_per_usd"])
+        def _last(ticker, fb):
+            col = close[ticker].dropna() if ticker in close.columns else None
+            return _safe_float(col.iloc[-1], fb) if col is not None and len(col) else fb
+
+        brent = _last(BRENT_TICKER, FALLBACK["brent_spot"])
+        wti   = _last(WTI_TICKER,   FALLBACK["wti_spot"])
+        kzt   = _last(KZT_TICKER,   FALLBACK["kzt_per_usd"])
+        dxy   = _last(DXY_TICKER,   FALLBACK["dxy"])
+        rub   = _last(RUB_TICKER,   FALLBACK["rub_per_usd"])
 
         def _spark(ticker):
             if ticker in close.columns:

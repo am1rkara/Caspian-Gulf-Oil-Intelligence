@@ -379,9 +379,9 @@ with c5:
 
     with st.expander("Methodology"):
         st.markdown(
-            f"Revenue = Brent × KZ production × 1,000 bbl/kbd × 365 × 50% govt take ÷ 1B. "
-            f"Breakeven: ${kz_breakeven}/bbl (IMF WEO 2025). "
-            f"+$10 Brent adds ~${rev10:.1f}B/yr gross."
+            f"Oil revenue = Brent price × production volume × 365 days × 50% government take. "
+            f"Fiscal breakeven: ${kz_breakeven}/bbl (IMF WEO 2025). "
+            f"Each additional $10 on Brent adds ~${rev10:.1f}B/yr to gross revenue."
         )
 
 with c6:

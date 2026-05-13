@@ -17,7 +17,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from datetime import datetime, timezone
 
-from src.utils.css import inject_css, sparkline_svg
+from src.utils.css import inject_css, sparkline_svg, mc_card
 from src.nav import render_sidebar
 from src.data.market import get_prices
 from src.metrics.hormuz import get_hormuz_status
@@ -249,53 +249,87 @@ CPC exports price off Urals (currently –${_disc:.0f}/bbl vs Brent), Russia has
 expansion, and route concentration creates a geopolitical exposure that is
 <b style='color:#e8eaf0'>structural, not episodic.</b>
 </p>
-<p style='font-size:14px;line-height:1.7;color:#c8ccd8;margin:0 0 14px'>
+<p style='font-size:14px;line-height:1.7;color:#c8ccd8;margin:0'>
 This terminal tracks that transmission mechanism in real time — Gulf chokepoint risk,
 OPEC+ compliance, CPC throughput, KZT fair value, and the fiscal buffer between
 Kazakhstan and a revenue shortfall.
 </p>
-<div style='border-top:1px solid #2d3139;padding-top:12px;display:flex;flex-wrap:wrap;gap:8px;font-size:12px'>
-<span style='padding:4px 10px;border-radius:4px;background:rgba({"74,222,128" if hormuz["level"]=="NORMAL" else "245,158,11" if hormuz["level"]=="ELEVATED" else "248,113,113"},0.12);
-color:{_hcol};font-weight:500'>Hormuz: {_hlvl}</span>
-<span style='padding:4px 10px;border-radius:4px;background:rgba(248,113,113,0.12);color:#f87171;font-weight:500'>CPC: Russia-controlled</span>
-<span style='padding:4px 10px;border-radius:4px;background:rgba(245,158,11,0.12);color:#f59e0b;font-weight:500'>Urals discount: –${_disc:.0f}/bbl</span>
-<span style='padding:4px 10px;border-radius:4px;background:{_fbuf_cls};color:{_fbuf_tcls};font-weight:500'>Fiscal buffer: ~${_fbuf_lo}–{_fbuf_hi}B/yr</span>
-<span style='padding:4px 10px;border-radius:4px;background:#1a1d24;color:#8b8fa8'>Brent ${brent:.0f} · KZT {kzt:.0f}</span>
-</div>
 </div></div>
 """, unsafe_allow_html=True)
 
-# ── Ticker (padded) ────────────────────────────────────────────────────────────
+# ── Market Metric Cards ────────────────────────────────────────────────────────
 sp_cls     = "neg" if spread < 0 else "pos"
 fiscal_cls = "pos" if fiscal["is_comfortable"] else "neg"
 _buf_lo    = max(0, round(fiscal["buffer_bn"] - 2))
 _buf_hi    = round(fiscal["buffer_bn"] + 2)
+_kzbe      = IMF_BREAKEVENS_USD["Kazakhstan"]
 _spark_b   = sparkline_svg(prices.get("spark_brent", []), w=60, h=24)
-_spark_w   = sparkline_svg(prices.get("spark_wti", []),   w=60, h=24)
-_spark_k   = sparkline_svg(prices.get("spark_kzt", []),   w=60, h=24)
+_spark_w   = sparkline_svg(prices.get("spark_wti",   []), w=60, h=24)
+_spark_k   = sparkline_svg(prices.get("spark_kzt",   []), w=60, h=24)
+_hcard_col = hormuz["color"]
+
+def _spk(svg: str) -> str:
+    if not svg:
+        return ""
+    return (f'<div style="background:#111318;border:1px solid #1e2430;border-radius:4px;'
+            f'padding:3px 6px;display:flex;align-items:center;flex-shrink:0;overflow:hidden">'
+            f'{svg}</div>')
+
 st.markdown(f"""
-<div class='ticker padded'>
-  <div class='t-item'>
-    <div class='t-label'>Brent</div>
-    <div style='display:flex;align-items:center;gap:6px'>
-      <div class='t-val'>${brent:.1f}</div>{_spark_b}
+<div class='padded' style='margin:10px 0 14px'>
+<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px'>
+  <div class='mc'>
+    <div class='mc-l'>Brent Spot</div>
+    <div style='display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0'>
+      <div class='mc-v t1' style='min-width:0;flex:1'>${brent:.1f}</div>
+      {_spk(_spark_b)}
     </div>
+    <div class='mc-d'>BZ=F · Live</div>
   </div>
-  <div class='t-item'>
-    <div class='t-label'>WTI</div>
-    <div style='display:flex;align-items:center;gap:6px'>
-      <div class='t-val'>${wti:.1f}</div>{_spark_w}
+  <div class='mc'>
+    <div class='mc-l'>WTI Spot</div>
+    <div style='display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0'>
+      <div class='mc-v t1' style='min-width:0;flex:1'>${wti:.1f}</div>
+      {_spk(_spark_w)}
     </div>
+    <div class='mc-d'>CL=F · Live</div>
   </div>
-  <div class='t-item'><div class='t-label'>WTI–Brent</div><div class='t-val {sp_cls}'>{spread:+.1f}</div></div>
-  <div class='t-item'>
-    <div class='t-label'>KZT/USD</div>
-    <div style='display:flex;align-items:center;gap:6px'>
-      <div class='t-val'>{kzt:.0f}</div>{_spark_k}
+  <div class='mc'>
+    <div class='mc-l'>KZT / USD</div>
+    <div style='display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0'>
+      <div class='mc-v t1' style='min-width:0;flex:1'>{kzt:.0f}</div>
+      {_spk(_spark_k)}
     </div>
+    <div class='mc-d'>USDKZT=X · Live</div>
   </div>
-  <div class='t-item'><div class='t-label'>Urals proxy</div><div class='t-val'>~${urals:.0f}</div></div>
-  <div class='t-item'><div class='t-label'>KZ fiscal buffer</div><div class='t-val {fiscal_cls}'>~${_buf_lo}–{_buf_hi}B/yr</div></div>
+  <div class='mc'>
+    <div class='mc-l'>WTI – Brent</div>
+    <div class='mc-v t2 {sp_cls}'>{spread:+.1f}</div>
+    <div class='mc-d'>USD/bbl spread</div>
+  </div>
+</div>
+<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:8px'>
+  <div class='mc'>
+    <div class='mc-l'>Urals Proxy</div>
+    <div class='mc-v t2'>~${urals:.0f}</div>
+    <div class='mc-d'>Brent –${_disc:.0f}/bbl post-sanctions</div>
+  </div>
+  <div class='mc'>
+    <div class='mc-l'>KZ Fiscal Buffer</div>
+    <div class='mc-v t2 {fiscal_cls}'>~${_buf_lo}–{_buf_hi}B/yr</div>
+    <div class='mc-d'>${_kzbe} breakeven · Brent ${brent:.0f}</div>
+  </div>
+  <div class='mc'>
+    <div class='mc-l'>Hormuz Status</div>
+    <div class='mc-v t2' style='color:{_hcard_col}'>{hormuz["level"]}</div>
+    <div class='mc-d'>{hormuz["count"]} signal{"s" if hormuz["count"]!=1 else ""} · last 7 days</div>
+  </div>
+  <div class='mc'>
+    <div class='mc-l'>CPC Pipeline</div>
+    <div class='mc-v t2 neg'>Russia-controlled</div>
+    <div class='mc-d'>Urals –${_disc:.0f}/bbl vs Brent · route risk</div>
+  </div>
+</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -421,16 +455,14 @@ fig.update_layout(
         showlakes=False, showrivers=False,
         showcountries=True, countrycolor="#2d3139", countrywidth=0.5,
         bgcolor="#0e1117",
-        lataxis=dict(range=[8, 60]),
-        lonaxis=dict(range=[24, 92]),
+        lataxis=dict(range=[17, 57]),
+        lonaxis=dict(range=[26, 87]),
     ),
     paper_bgcolor="#0e1117",
     margin=dict(l=0, r=0, t=0, b=0),
-    height=540,
+    height=560,
     showlegend=False,
     dragmode=False,
-    modebar_remove=["select2d","lasso2d","zoomIn2d","zoomOut2d",
-                    "autoScale2d","resetScale2d","toImage"],
 )
 
 status_col, map_col, legend_col = st.columns([1, 4, 1])
@@ -497,7 +529,8 @@ letter-spacing:0.08em;margin-bottom:8px'>Recent Signals</div>
 """, unsafe_allow_html=True)
 
 with map_col:
-    event = st.plotly_chart(fig, key="energy_map", on_select="rerun", use_container_width=True)
+    event = st.plotly_chart(fig, key="energy_map", on_select="rerun", use_container_width=True,
+                            config={"scrollZoom": False, "displayModeBar": False})
 with legend_col:
     st.markdown("""
 <div style='background:#1c1f26;border:1px solid #2d3139;border-radius:4px;

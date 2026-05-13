@@ -238,23 +238,20 @@ with st.expander("Methodology"):
     st.markdown(f"""
 **Baseline:** {baseline_note} = **${baseline_brent:.0f}/bbl**. Total spike = **${total_spike:+.0f}/bbl**.
 
-**Supply disruption:** EIA Hormuz baseline {HORMUZ_DAILY_MBPD:.0f} mb/day.
-Status disruption fractions: NORMAL 0%, ELEVATED 15%, HEIGHTENED 35%.
+**Supply disruption:** EIA Hormuz baseline {HORMUZ_DAILY_MBPD:.0f} mb/day transiting the strait.
+Disruption fractions by scenario: NORMAL 0%, ELEVATED 15%, HEIGHTENED 35%.
 Elasticity range **${ELASTICITY_LO:.0f}–{ELASTICITY_HI:.0f}/bbl per mb/day** (EIA/IMF).
-{scenario} → {disrupted_mbpd:.1f} mb/day → **~${supply_lo:.0f}–{supply_hi:.0f}/bbl**.
+{scenario} scenario: {disrupted_mbpd:.1f} mb/day affected = **~${supply_lo:.0f}–{supply_hi:.0f}/bbl** price impact.
 
-**SPR offset:** ~17.5 mb released Mar–May 2026 ≈ {SPR_RELEASE_MBPD:.2f} mb/day annualised → **{spr_offset:.0f}/bbl**.
+**SPR offset:** ~17.5 mb released Mar–May 2026, equal to {SPR_RELEASE_MBPD:.2f} mb/day annualised, offsetting **${abs(spr_offset):.0f}/bbl**.
 
-**US production:** +{US_PROD_OFFSET_MBPD:.1f} mb/day above 2024 baseline → **{us_prod_offset:.0f}/bbl**.
+**US production:** {US_PROD_OFFSET_MBPD:.1f} mb/day above 2024 baseline offsets **${abs(us_prod_offset):.0f}/bbl**.
 
-**India demand (qualitative):** Judgment estimate **{india_offset:.0f}/bbl**.
+**India demand (qualitative):** Judgment estimate **${abs(india_offset):.0f}/bbl** demand reduction.
 
 **War / risk premium (derived residual):**
-= Total spike − Supply − Offsets = {total_spike:.0f} − {supply_component:.0f} − ({total_offsets:.0f}) = **{war_premium:.0f}/bbl**.
-
-Derived as residual to avoid double-counting: supply disruption and futures backwardation are not independent.
-The same physical shock that removes barrels also steepens backwardation.
-Using backwardation as a separate input attributes the same effect twice.
+Total spike (${total_spike:+.0f}) minus supply disruption (${supply_component:.0f}) minus offsets (${total_offsets:.0f}) = **${war_premium:.0f}/bbl**.
+Derived as residual to avoid double-counting — the same physical shock that removes barrels also steepens futures backwardation; using backwardation as a separate input would attribute the same effect twice.
 
 **Futures cross-check (not an input):** {curve_check}
 """)
