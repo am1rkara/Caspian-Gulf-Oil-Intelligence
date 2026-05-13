@@ -23,7 +23,7 @@ from src.data.market import get_prices, get_brent_history
 from src.feeds.rss import get_articles
 from src.metrics.hormuz import get_hormuz_status, DISRUPTION_FRAC
 
-st.set_page_config(page_title="Hormuz Decomposition", layout="wide")
+st.set_page_config(page_title="Hormuz Decomposition", layout="wide", initial_sidebar_state="expanded")
 st.markdown(TERMINAL_CSS, unsafe_allow_html=True)
 render_sidebar()
 

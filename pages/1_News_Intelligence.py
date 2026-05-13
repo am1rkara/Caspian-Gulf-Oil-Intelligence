@@ -19,7 +19,7 @@ from src.nav import render_sidebar
 from src.feeds.rss import get_articles
 from src.feeds.ai_brief import generate_brief
 
-st.set_page_config(page_title="News Intelligence", layout="wide")
+st.set_page_config(page_title="News Intelligence", layout="wide", initial_sidebar_state="expanded")
 st.markdown(TERMINAL_CSS, unsafe_allow_html=True)
 render_sidebar()
 

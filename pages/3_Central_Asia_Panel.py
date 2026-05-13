@@ -26,7 +26,7 @@ from src.metrics.calculations import (
     fiscal_nowcast, opec_gap, transmission_chain,
 )
 
-st.set_page_config(page_title="Central Asia", layout="wide")
+st.set_page_config(page_title="Central Asia", layout="wide", initial_sidebar_state="expanded")
 st.markdown(TERMINAL_CSS, unsafe_allow_html=True)
 render_sidebar()
 

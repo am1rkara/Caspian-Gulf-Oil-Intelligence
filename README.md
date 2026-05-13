@@ -1,3 +1,15 @@
+---
+title: Caspian-Gulf Oil Intelligence
+emoji: 🛢
+colorFrom: blue
+colorTo: gray
+sdk: streamlit
+sdk_version: 1.35.0
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # Caspian-Gulf Oil Intelligence
 
 A multi-page research terminal for tracking Gulf supply risk and its transmission into Central Asian oil economics. Built around a specific analytical thesis: Kazakhstan's realized oil revenue is structurally disconnected from headline Brent because of three independent constraints — Urals pricing, CPC pipeline congestion, and route concentration through Russian territory. This dashboard quantifies each link in that chain.

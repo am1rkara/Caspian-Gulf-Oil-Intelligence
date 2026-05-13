@@ -22,7 +22,7 @@ from src.data.eia import get_production
 from src.data.imf import IMF_BREAKEVENS_USD, OPEC_QUOTAS_KBPD, URALS_DISCOUNT
 from src.metrics.calculations import urals_proxy, brent_wti_spread, opec_gap
 
-st.set_page_config(page_title="Gulf Markets", layout="wide")
+st.set_page_config(page_title="Gulf Markets", layout="wide", initial_sidebar_state="expanded")
 st.markdown(TERMINAL_CSS, unsafe_allow_html=True)
 render_sidebar()
 

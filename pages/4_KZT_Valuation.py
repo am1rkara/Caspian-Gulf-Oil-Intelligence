@@ -23,7 +23,7 @@ from src.style import TERMINAL_CSS
 from src.nav import render_sidebar
 from src.data.market import get_prices, get_brent_history, get_kzt_history
 
-st.set_page_config(page_title="KZT Valuation", layout="wide")
+st.set_page_config(page_title="KZT Valuation", layout="wide", initial_sidebar_state="expanded")
 st.markdown(TERMINAL_CSS, unsafe_allow_html=True)
 render_sidebar()
 
