@@ -17,7 +17,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from datetime import datetime, timezone
 
-from src.utils.css import inject_css
+from src.utils.css import inject_css, TERMINAL_PLOT, TERMINAL_GRID
 from src.nav import render_sidebar
 from src.data.market import get_prices, get_brent_history
 from src.feeds.rss import get_articles
@@ -29,14 +29,10 @@ inject_css()
 render_sidebar()
 
 st.markdown("<h1>Hormuz Decomposition</h1>", unsafe_allow_html=True)
+st.markdown("<div class='pg-desc'>Separates live Brent into physical supply fundamentals and Hormuz geopolitical risk premium.</div>", unsafe_allow_html=True)
 
-PLOT = dict(
-    template="plotly_dark",
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter, sans-serif", color="#8b8fa8", size=11),
-)
-GRID = "#1e2128"
+PLOT = TERMINAL_PLOT
+GRID = TERMINAL_GRID
 
 # ── Model constants ────────────────────────────────────────────────────────────
 HORMUZ_DAILY_MBPD   = 17.0
@@ -77,18 +73,30 @@ def compute_baseline(brent_df: pd.DataFrame) -> tuple[float, str]:
 
 def fetch_curve_check(live_brent: float) -> str:
     """Futures curve cross-validation — not an input to the model."""
-    try:
-        import yfinance as yf
-        fwd_data = yf.download("BZZ26.NYM", period="5d", progress=False)
-        if fwd_data.empty:
-            raise ValueError("no data")
-        fwd = float(fwd_data["Close"].dropna().iloc[-1])
-        excess = (live_brent - fwd) - SEASONAL_BACKW
-        return (f"Prompt–12m = ${live_brent:.0f}–${fwd:.0f} = "
-                f"${live_brent - fwd:.0f} backwardation, "
-                f"${excess:.0f} above ${SEASONAL_BACKW} seasonal baseline.")
-    except Exception:
-        return "Futures curve: contract unavailable."
+    import yfinance as yf
+    candidates = ["BZX26=F", "BZV26=F", "BZZ26=F", "BZM6=F", "BZN26=F",
+                  "BZZ26.NYM", "BZX26.NYM"]
+    for ticker in candidates:
+        try:
+            df = yf.download(ticker, period="5d", progress=False, auto_adjust=True)
+            if df.empty:
+                continue
+            col = "Close" if "Close" in df.columns else df.columns[0]
+            fwd = float(df[col].dropna().iloc[-1])
+            if fwd <= 0:
+                continue
+            excess = (live_brent - fwd) - SEASONAL_BACKW
+            state  = "backwardation" if live_brent > fwd else "contango"
+            return (f"Prompt–6M = ${live_brent:.1f}–${fwd:.1f} = "
+                    f"${abs(live_brent - fwd):.1f} {state} "
+                    f"(${excess:+.1f} vs ${SEASONAL_BACKW} seasonal baseline) [{ticker}]")
+        except Exception:
+            continue
+    # Carry model fallback — always shows a number
+    fwd_carry = round(live_brent * (1 + 0.05 / 2), 1)
+    spread    = round(live_brent - fwd_carry, 1)
+    return (f"Implied 6M (carry model, 5% rate) = ${fwd_carry:.1f} · "
+            f"spread ${spread:+.1f}/bbl vs spot ${live_brent:.1f}")
 
 
 prices         = load_live()

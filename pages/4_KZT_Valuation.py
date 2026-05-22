@@ -16,7 +16,7 @@ import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
 
-from src.utils.css import inject_css, sparkline_svg, mc_card
+from src.utils.css import inject_css, sparkline_svg, mc_card, TERMINAL_PLOT, TERMINAL_GRID
 from src.nav import render_sidebar
 from src.data.market import get_prices, get_multi_history
 from src.metrics.calculations import multivariate_kzt_ols
@@ -26,14 +26,10 @@ inject_css()
 render_sidebar()
 
 st.markdown("<h1>KZT Valuation</h1>", unsafe_allow_html=True)
+st.markdown("<div class='pg-desc'>Multivariate FX model — KZT/USD against Brent, DXY, RUB with 2022 regime split.</div>", unsafe_allow_html=True)
 
-PLOT = dict(
-    template="plotly_dark",
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter, sans-serif", color="#8b8fa8", size=11),
-)
-GRID = "#1e2128"
+PLOT = TERMINAL_PLOT
+GRID = TERMINAL_GRID
 
 # ── Loaders ────────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=60)

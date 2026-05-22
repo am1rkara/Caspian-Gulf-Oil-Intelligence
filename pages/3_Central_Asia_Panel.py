@@ -11,12 +11,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+import yfinance as yf
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from src.utils.css import inject_css, sparkline_svg, mc_card
+from src.utils.css import inject_css, sparkline_svg, mc_card, TERMINAL_PLOT, TERMINAL_GRID
 from src.nav import render_sidebar
 from src.data.market import get_prices, get_multi_history
 from src.data.eia import get_production
@@ -31,14 +32,10 @@ inject_css()
 render_sidebar()
 
 st.markdown("<h1>Central Asia Panel</h1>", unsafe_allow_html=True)
+st.markdown("<div class='pg-desc'>CPC export bottleneck, Kazakh fiscal transmission, and Urals realized pricing.</div>", unsafe_allow_html=True)
 
-PLOT = dict(
-    template="plotly_dark",
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter, sans-serif", color="#8b8fa8", size=11),
-)
-GRID = "#1e2128"
+PLOT = TERMINAL_PLOT
+GRID = TERMINAL_GRID
 
 # ── CPC disruption event timeline data ────────────────────────────────────────
 _CPC_EVENTS = [
@@ -76,6 +73,17 @@ def load_history():
 @st.cache_data(ttl=21600)
 def load_production():
     return get_production(os.getenv("EIA_API_KEY"))
+
+@st.cache_data(ttl=3600)
+def load_crack_data():
+    """Fetch RBOB (RB=F) and Heating Oil (HO=F) for 3-2-1 crack spread proxy."""
+    try:
+        df = yf.download(["RB=F", "HO=F"], period="90d", progress=False,
+                         auto_adjust=True)["Close"].dropna(how="all")
+        df.index = pd.to_datetime(df.index).tz_localize(None)
+        return df.reset_index().rename(columns={"Date": "date", "index": "date"})
+    except Exception:
+        return pd.DataFrame()
 
 prices     = load_prices()
 production = load_production()
@@ -448,9 +456,9 @@ fig_sankey = go.Figure(go.Sankey(
     ),
 ))
 fig_sankey.update_layout(
-    paper_bgcolor="#0e1117",
-    plot_bgcolor="#0e1117",
-    font=dict(family="Inter, sans-serif", color="#c8ccd8", size=11),
+    paper_bgcolor="#000000",
+    plot_bgcolor="#000000",
+    font=dict(family="IBM Plex Mono, monospace", color="#a0a0a0", size=11),
     height=280,
     margin=dict(l=0, r=0, t=0, b=0),
 )
@@ -508,6 +516,71 @@ st.markdown(f"""
 <div class='muted' style='margin-top:5px'>At Brent ${brent:.0f}, Urals proxy ~${urals_price:.0f}.
 Revenue impact = lost volume × Urals price × 50% govt take.</div>
 """, unsafe_allow_html=True)
+
+# ── Urals 3-2-1 Crack Spread Proxy ───────────────────────────────────────────
+st.markdown("<div class='sec'>Urals 3-2-1 Crack Spread Proxy</div>", unsafe_allow_html=True)
+
+crack_raw = load_crack_data()
+urals_price = urals_proxy(brent)
+
+if not crack_raw.empty and "RB=F" in crack_raw.columns and "HO=F" in crack_raw.columns:
+    date_col = "date" if "date" in crack_raw.columns else crack_raw.columns[0]
+    df_c = crack_raw.dropna(subset=["RB=F", "HO=F"]).copy()
+    df_c["urals"] = urals_price
+    # 3-2-1 crack: (2*gasoline_bbl + 1*distillate_bbl - 3*crude) / 3
+    # RB=F and HO=F quote in $/gallon; multiply by 42 gal/bbl
+    df_c["crack"] = (2 * df_c["RB=F"] * 42 + df_c["HO=F"] * 42 - 3 * df_c["urals"]) / 3
+
+    current_crack = float(df_c["crack"].iloc[-1]) if len(df_c) > 0 else 0.0
+    crack_color   = "#39ff14" if current_crack > 0 else "#ff3131"
+
+    st.markdown(
+        f"<div style='font-size:14px;font-weight:700;color:{crack_color};"
+        f"letter-spacing:0.05em;margin-bottom:4px'>"
+        f"CURRENT CRACK  ${current_crack:.2f}/bbl &nbsp;"
+        f"<span style='color:#555555;font-size:11px;font-weight:400'>"
+        f"Urals realized ~${urals_price:.0f} · 3-2-1 proxy</span></div>",
+        unsafe_allow_html=True,
+    )
+
+    fig_crack = go.Figure()
+    crack_vals = df_c["crack"].tolist()
+    dates_vals = df_c[date_col].tolist()
+
+    fig_crack.add_trace(go.Scatter(
+        x=dates_vals, y=crack_vals,
+        fill="tozeroy", fillcolor="rgba(0,180,216,0.12)",
+        line=dict(color="#a0a0a0", width=1.5),
+        name="3-2-1 Crack",
+        hovertemplate="%{x|%b %d}: $%{y:.2f}<extra></extra>",
+    ))
+    fig_crack.add_hline(y=0, line_dash="dash", line_color="#555555", line_width=1)
+    fig_crack.update_layout(
+        **PLOT, height=260, showlegend=False,
+        margin=dict(l=0, r=0, t=0, b=0),
+        yaxis=dict(title="$/bbl", gridcolor=GRID, title_font=dict(size=10)),
+        xaxis=dict(gridcolor=GRID),
+    )
+    st.plotly_chart(fig_crack, use_container_width=True)
+else:
+    st.markdown(
+        f"<div class='mc'><div class='mc-l'>3-2-1 Crack (current)</div>"
+        f"<div class='mc-v t2'>Live fetch unavailable</div></div>",
+        unsafe_allow_html=True,
+    )
+
+st.markdown(
+    "<div class='muted'>Proxy: 3-2-1 crack using RBOB/HO futures minus Urals realized price. "
+    "Direction reliable — absolute level understated by ~$1-2 vs KEBCO.</div>",
+    unsafe_allow_html=True,
+)
+with st.expander("Methodology — Crack spread"):
+    st.markdown(
+        "KEBCO trades $1-2/bbl above Urals. Platts/Argus required for precise "
+        "KEBCO crack data. Urals used as proxy. "
+        "Formula: (2 × RBOB × 42 + 1 × HO × 42 − 3 × Urals) ÷ 3. "
+        "RBOB and HO futures quote in $/gallon; multiply by 42 gal/bbl to convert to $/bbl."
+    )
 
 # ── Transmission Mechanism ────────────────────────────────────────────────────
 st.markdown(f"""

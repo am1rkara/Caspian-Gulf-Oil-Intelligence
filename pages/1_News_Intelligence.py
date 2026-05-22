@@ -24,6 +24,7 @@ inject_css()
 render_sidebar()
 
 st.markdown("<h1>News Intelligence</h1>", unsafe_allow_html=True)
+st.markdown("<div class='pg-desc'>Live feed filtered for Central Asia and Gulf energy events.</div>", unsafe_allow_html=True)
 
 # ── Loaders ────────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=3600)

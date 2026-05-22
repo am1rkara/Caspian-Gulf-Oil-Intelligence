@@ -34,47 +34,42 @@ inject_css()
 render_sidebar()
 st.markdown("""
 <style>
-/* Full-bleed layout for landing page */
 .main .block-container {
     padding-left: 0 !important;
     padding-right: 0 !important;
     padding-top: 1.2rem !important;
     max-width: 100% !important;
 }
-/* Re-add padding to non-map content via wrapper divs */
 .padded { padding: 0 2rem; }
 
-/* Info panel */
 .info-panel {
-    background: #1c1f26;
-    border: 1px solid #2d3139;
-    border-radius: 4px;
+    background: #0a0a0a;
+    border: 1px solid #1a1a1a;
+    border-radius: 0;
     padding: 18px 22px;
     margin: 12px 2rem 0;
 }
-.info-panel.ca  { border-left: 3px solid #3b82f6; }
+.info-panel.ca  { border-left: 3px solid #39ff14; }
 .info-panel.me  { border-left: 3px solid #f59e0b; }
-.info-panel.dim { border-left: 3px solid #2d3139; }
+.info-panel.dim { border-left: 3px solid #1a1a1a; }
 
 .kpi-row { display: flex; gap: 28px; margin-top: 14px; flex-wrap: wrap; }
 .kpi-item { display: flex; flex-direction: column; gap: 2px; }
-.kpi-l { color: #8b8fa8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; }
-.kpi-v { color: #e8eaf0; font-size: 17px; font-weight: 600; }
+.kpi-l { color: #555555; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; }
+.kpi-v { color: #e8eaf0; font-size: 16px; font-weight: 600; letter-spacing: 0.02em; }
 
 .nav-btn {
     display: inline-block;
-    background: #1e3a5f; border: 1px solid #3b82f6; border-radius: 4px;
-    padding: 6px 14px; color: #60a5fa !important;
-    font-size: 12px; font-weight: 500; margin-top: 14px;
+    background: #000000; border: 1px solid #39ff14; border-radius: 0;
+    padding: 6px 14px; color: #39ff14 !important;
+    font-size: 11px; font-weight: 500; margin-top: 14px;
     text-decoration: none !important;
 }
-.nav-btn:hover { background: #263d6e; color: #93c5fd !important; }
+.nav-btn:hover { background: #0a0a0a; color: #39ff14 !important; }
 .nav-btn.purple {
-    background: #2d1e4f; border-color: #a78bfa; color: #a78bfa !important;
+    background: #000000; border-color: #f59e0b; color: #f59e0b !important;
 }
-.nav-btn.purple:hover { background: #372360; }
-
-.map-hint { color: #555a6e; font-size: 12px; padding: 14px 2rem 0; }
+.nav-btn.purple:hover { background: #0a0a0a; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -218,9 +213,12 @@ hormuz = get_hormuz_status(articles)
 # ── Header (padded) ────────────────────────────────────────────────────────────
 top_l, top_r = st.columns([5, 1])
 with top_l:
-    st.markdown("<div class='padded'><h1 style='color:#e8eaf0;font-weight:700;font-size:2.1rem;line-height:1.1;margin-bottom:2px'>Caspian-Gulf Oil Intelligence</h1>"
-                "<div style='color:#8b8fa8;font-size:13px'>Central Asia & Middle East — supply chain risk, export bottlenecks, fiscal stress, pipeline geopolitics</div></div>",
-                unsafe_allow_html=True)
+    st.markdown(
+        "<div class='padded'>"
+        "<h1>Caspian-Gulf Oil Intelligence</h1>"
+        "<div class='pg-desc'>Caspian-Gulf energy risk monitor. Click a region to explore.</div>"
+        "</div>",
+        unsafe_allow_html=True)
 with top_r:
     st.markdown(f"<div class='padded muted' style='text-align:right;margin-top:12px'>"
                 f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</div>",
@@ -237,11 +235,10 @@ _fbuf_cls  = "rgba(74,222,128,0.12)" if _fbuf >= 0 else "rgba(248,113,113,0.12)"
 _fbuf_tcls = "#4ade80" if _fbuf >= 0 else "#f87171"
 st.markdown(f"""
 <div class='padded' style='margin-bottom:4px'>
-<div style='background:#1c1f26;border:1px solid #2d3139;border-radius:4px;
-padding:18px 22px;'>
-<p style='font-size:10px;letter-spacing:0.08em;text-transform:uppercase;
-color:#8b8fa8;margin:0 0 10px'>About this terminal</p>
-<p style='font-size:14px;line-height:1.7;color:#c8ccd8;margin:0 0 10px'>
+<div style='background:#0a0a0a;border:1px solid #1a1a1a;padding:18px 22px;'>
+<p style='font-size:9px;letter-spacing:0.1em;text-transform:uppercase;
+color:#555555;margin:0 0 10px'>About this terminal</p>
+<p style='font-size:13px;line-height:1.7;color:#a0a0a0;margin:0 0 10px'>
 Kazakhstan earns ~80% of its oil export revenue through a single Russian-controlled
 pipeline — the CPC corridor to Novorossiysk. When the Strait of Hormuz tightens,
 <b style='color:#e8eaf0'>Brent spikes and KZ fiscal revenue improves</b>, but structural limits cap the upside:
@@ -249,7 +246,7 @@ CPC exports price off Urals (currently –${_disc:.0f}/bbl vs Brent), Russia has
 expansion, and route concentration creates a geopolitical exposure that is
 <b style='color:#e8eaf0'>structural, not episodic.</b>
 </p>
-<p style='font-size:14px;line-height:1.7;color:#c8ccd8;margin:0'>
+<p style='font-size:13px;line-height:1.7;color:#a0a0a0;margin:0'>
 This terminal tracks that transmission mechanism in real time — Gulf chokepoint risk,
 OPEC+ compliance, CPC throughput, KZT fair value, and the fiscal buffer between
 Kazakhstan and a revenue shortfall.
@@ -271,7 +268,7 @@ _hcard_col = hormuz["color"]
 def _spk(svg: str) -> str:
     if not svg:
         return ""
-    return (f'<div style="background:#111318;border:1px solid #1e2430;border-radius:4px;'
+    return (f'<div style="background:#050505;border:1px solid #1a1a1a;border-radius:0;'
             f'padding:3px 6px;display:flex;align-items:center;flex-shrink:0;overflow:hidden">'
             f'{svg}</div>')
 
@@ -333,21 +330,21 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Map — full bleed ───────────────────────────────────────────────────────────
+# ── Globe — full bleed ─────────────────────────────────────────────────────────
 ca_isos  = ["KAZ","UZB","TKM","KGZ","TJK"]
 me_isos  = ["SAU","ARE","IRQ","KWT","IRN","OMN","QAT","BHR"]
 
-ca_hover = [f"<b>{COUNTRY_META[i][2]}</b><br><span style='color:#8b8fa8;font-size:11px'>Central Asia — {COUNTRY_META[i][3][:60]}…</span>"
+ca_hover = [f"<b>{COUNTRY_META[i][2]}</b><br><span style='color:#555555;font-size:11px'>Central Asia — {COUNTRY_META[i][3][:60]}…</span>"
             for i in ca_isos]
-me_hover = [f"<b>{COUNTRY_META[i][2]}</b><br><span style='color:#8b8fa8;font-size:11px'>Middle East — {COUNTRY_META[i][3][:60]}…</span>"
+me_hover = [f"<b>{COUNTRY_META[i][2]}</b><br><span style='color:#555555;font-size:11px'>Middle East — {COUNTRY_META[i][3][:60]}…</span>"
             for i in me_isos]
 
 fig = go.Figure()
 fig.add_trace(go.Choropleth(
     locations=ca_isos, z=[1]*len(ca_isos),
-    colorscale=[[0,"#3b82f6"],[1,"#3b82f6"]],
-    showscale=False, marker_opacity=0.55,
-    marker_line_color="#2d3139", marker_line_width=0.5,
+    colorscale=[[0,"#39ff14"],[1,"#39ff14"]],
+    showscale=False, marker_opacity=0.5,
+    marker_line_color="#1a1a1a", marker_line_width=0.5,
     customdata=ca_isos,
     text=ca_hover, hoverinfo="text",
     name="Central Asia",
@@ -355,262 +352,137 @@ fig.add_trace(go.Choropleth(
 fig.add_trace(go.Choropleth(
     locations=me_isos, z=[1]*len(me_isos),
     colorscale=[[0,"#f59e0b"],[1,"#f59e0b"]],
-    showscale=False, marker_opacity=0.55,
-    marker_line_color="#2d3139", marker_line_width=0.5,
+    showscale=False, marker_opacity=0.5,
+    marker_line_color="#1a1a1a", marker_line_width=0.5,
     customdata=me_isos,
     text=me_hover, hoverinfo="text",
     name="Middle East",
 ))
-# ── Infrastructure overlays ────────────────────────────────────────────────────
 
-# CPC — Tengiz → Novorossiysk (oil, ~1,511 km)
+# CPC pipeline — Tengiz → Novorossiysk (#ff3131)
 fig.add_trace(go.Scattergeo(
     lat=[53.1, 47.1, 46.5, 44.8, 44.7],
     lon=[53.7, 51.9, 49.0, 43.0, 37.8],
     mode="lines",
-    line=dict(color="#f59e0b", width=2.5),
+    line=dict(color="#ff3131", width=2),
     name="CPC",
-    hovertext="CPC Pipeline — Tengiz → Novorossiysk<br>1,511 km · ~1.3 mb/day crude oil<br>Carries ~80% of Kazakhstan's exports",
+    hovertext="CPC Pipeline — Tengiz → Novorossiysk<br>1,511 km · ~1.3 mb/day · 80% of KZ exports",
     hoverinfo="text",
     showlegend=False,
 ))
 
-# BTC — Baku → Tbilisi → Ceyhan (oil, ~1,768 km)
+# Chokepoints — Hormuz, Bosphorus, Novorossiysk
 fig.add_trace(go.Scattergeo(
-    lat=[40.4, 41.7, 41.2, 38.5, 36.9],
-    lon=[49.9, 44.8, 42.0, 38.0, 35.9],
-    mode="lines",
-    line=dict(color="#4ade80", width=2),
-    name="BTC",
-    hovertext="BTC Pipeline — Baku → Tbilisi → Ceyhan<br>1,768 km · ~1.2 mb/day crude oil<br>Primary KZ alternative export route via Azerbaijan",
-    hoverinfo="text",
-    showlegend=False,
-))
-
-# TANAP — Azerbaijan/Georgia → Turkey → Greece (natural gas)
-fig.add_trace(go.Scattergeo(
-    lat=[41.5, 39.9, 39.8, 39.9, 41.2],
-    lon=[43.5, 41.3, 32.0, 28.0, 26.2],
-    mode="lines",
-    line=dict(color="#a78bfa", width=2, dash="dot"),
-    name="TANAP",
-    hovertext="TANAP — Trans-Anatolian Pipeline<br>1,850 km · natural gas · Azerbaijan → Europe<br>Connects to Trans-Adriatic Pipeline (TAP)",
-    hoverinfo="text",
-    showlegend=False,
-))
-
-# Turkmenistan–China Gas Pipeline
-fig.add_trace(go.Scattergeo(
-    lat=[37.9, 40.5, 42.5, 44.2, 43.5],
-    lon=[61.1, 66.0, 72.0, 80.4, 84.0],
-    mode="lines",
-    line=dict(color="#22d3ee", width=2, dash="dot"),
-    name="TKM–China",
-    hovertext="Central Asia–China Gas Pipeline<br>~1,800 km · natural gas<br>Galkynysh (TKM) → Horgos (China) · gives Beijing pricing leverage",
-    hoverinfo="text",
-    showlegend=False,
-))
-
-# LNG Terminals — markers only, labels in right-panel legend (avoid map clutter)
-fig.add_trace(go.Scattergeo(
-    lat=[25.9,  25.1,    22.6,      27.5],
-    lon=[51.6,  52.9,    59.5,      52.6],
-    mode="markers",
-    marker=dict(symbol="circle", size=7, color="#e8eaf0",
-                line=dict(color="#0e1117", width=1)),
-    name="LNG Terminals",
+    lat=[26.5, 41.0, 44.7],
+    lon=[56.5, 29.0, 37.8],
+    mode="markers+text",
+    marker=dict(symbol="x-thin-open", size=10, color="#ff3131",
+                line=dict(color="#ff3131", width=2)),
+    text=["Hormuz", "Bosphorus", "Novorossiysk"],
+    textposition=["top center", "top center", "top center"],
+    textfont=dict(size=9, color="#ff3131"),
     hovertext=[
-        "Ras Laffan (Qatar) — world's largest LNG export complex · ~77 MTPA",
-        "Das Island (UAE) — ADNOC LNG terminal · ~5.8 MTPA",
-        "Oman LNG, Sur · ~10 MTPA",
-        "South Pars / Assaluyeh (Iran) — world's largest gas field",
+        "Strait of Hormuz — ~20% of global oil trade · ~17 mb/day",
+        "Bosphorus Strait — Black Sea gateway · ~3 mb/day",
+        "Novorossiysk — CPC terminus · ~1.3 mb/day KZ crude",
     ],
     hoverinfo="text",
     showlegend=False,
-))
-
-# Strait of Hormuz chokepoint
-fig.add_trace(go.Scattergeo(
-    lat=[26.6],
-    lon=[56.5],
-    mode="markers+text",
-    marker=dict(symbol="x-thin-open", size=16, color="#f87171",
-                line=dict(color="#f87171", width=2.5)),
-    text=["Hormuz"],
-    textposition="top center",
-    textfont=dict(size=10, color="#f87171", family="Inter, sans-serif"),
-    name="Hormuz",
-    hovertext="Strait of Hormuz — ~20% of global oil trade<br>~17 mb/day oil + LNG in transit<br>Iran controls northern shore",
-    hoverinfo="text",
-    showlegend=False,
+    name="Chokepoints",
 ))
 
 fig.update_layout(
     geo=dict(
-        projection_type="mercator",
+        projection_type="orthographic",
+        projection_rotation=dict(lon=55, lat=30, roll=0),
         showframe=False,
-        showcoastlines=True, coastlinecolor="#2d3139", coastlinewidth=0.5,
-        showland=True,  landcolor="#161920",
-        showocean=True, oceancolor="#0e1117",
+        showcoastlines=True, coastlinecolor="#1a1a1a", coastlinewidth=0.4,
+        showland=True,  landcolor="#0a0a0a",
+        showocean=True, oceancolor="#000000",
         showlakes=False, showrivers=False,
-        showcountries=True, countrycolor="#2d3139", countrywidth=0.5,
-        bgcolor="#0e1117",
-        lataxis=dict(range=[17, 57]),
-        lonaxis=dict(range=[26, 87]),
+        showcountries=True, countrycolor="#1a1a1a", countrywidth=0.3,
+        bgcolor="#000000",
     ),
-    paper_bgcolor="#0e1117",
+    paper_bgcolor="#000000",
     margin=dict(l=0, r=0, t=0, b=0),
-    height=560,
+    height=520,
     showlegend=False,
-    dragmode=False,
 )
 
-status_col, map_col, legend_col = st.columns([1, 4, 1])
+status_col, globe_col = st.columns([1, 5])
 
 # ── Chokepoint Status Panel ────────────────────────────────────────────────────
 with status_col:
     h = hormuz
     sig_rows = "".join(
         f"<div style='border-left:2px solid {h['color']};padding-left:8px;"
-        f"margin-bottom:7px;color:#c8ccd8;font-size:10px;line-height:1.4'>"
-        f"<span style='color:#8b8fa8;font-size:9px'>{_html.escape(a['source'])}</span><br>"
+        f"margin-bottom:7px;color:#a0a0a0;font-size:10px;line-height:1.4'>"
+        f"<span style='color:#555555;font-size:9px'>{_html.escape(a['source'])}</span><br>"
         f"{_html.escape(a['title'])[:70]}{'…' if len(a['title'])>70 else ''}</div>"
         for a in h["articles"]
-    ) or f"<div style='color:#555a6e;font-size:10px'>No recent signals in feed</div>"
+    ) or "<div style='color:#555555;font-size:10px'>No recent signals in feed</div>"
 
     st.markdown(f"""
-<div style='background:#1c1f26;border:1px solid #2d3139;border-radius:4px;
-padding:14px;font-family:Inter,sans-serif;height:100%;'>
+<div style='background:#0a0a0a;border:1px solid #1a1a1a;
+padding:14px;height:100%;'>
 
-<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
-letter-spacing:0.08em;margin-bottom:8px'>Hormuz Status</div>
+<div style='color:#555555;font-size:9px;text-transform:uppercase;
+letter-spacing:0.1em;margin-bottom:8px'>Hormuz Status</div>
 
-<div style='color:{h["color"]};font-size:15px;font-weight:700;
+<div style='color:{h["color"]};font-size:14px;font-weight:700;
 margin-bottom:2px'>{h["level"]}</div>
-<div style='color:#6b7280;font-size:10px;margin-bottom:14px'>
+<div style='color:#555555;font-size:10px;margin-bottom:14px'>
 {h["count"]} signal{"s" if h["count"]!=1 else ""} in last 7 days</div>
 
-<div style='border-top:1px solid #2d3139;padding-top:12px;margin-bottom:12px'>
-<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
-letter-spacing:0.08em;margin-bottom:8px'>Transit Volume</div>
+<div style='border-top:1px solid #1a1a1a;padding-top:12px;margin-bottom:12px'>
+<div style='color:#555555;font-size:9px;text-transform:uppercase;
+letter-spacing:0.1em;margin-bottom:8px'>Transit Volume</div>
 <div style='color:#e8eaf0;font-size:13px;font-weight:600'>~17 mb/day</div>
-<div style='color:#6b7280;font-size:10px'>oil &amp; products</div>
+<div style='color:#555555;font-size:10px'>oil &amp; products</div>
 <div style='color:#e8eaf0;font-size:13px;font-weight:600;margin-top:5px'>~4 bcf/day</div>
-<div style='color:#6b7280;font-size:10px'>LNG in transit</div>
-<div style='color:#8b8fa8;font-size:10px;margin-top:6px'>≈ 20% of global oil trade</div>
+<div style='color:#555555;font-size:10px'>LNG in transit</div>
+<div style='color:#555555;font-size:10px;margin-top:6px'>≈ 20% of global oil trade</div>
 </div>
 
-<div style='border-top:1px solid #2d3139;padding-top:12px;margin-bottom:12px'>
-<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
-letter-spacing:0.08em;margin-bottom:8px'>Bypass Routes</div>
+<div style='border-top:1px solid #1a1a1a;padding-top:12px;margin-bottom:12px'>
+<div style='color:#555555;font-size:9px;text-transform:uppercase;
+letter-spacing:0.1em;margin-bottom:8px'>Bypass Routes</div>
 
 <div style='margin-bottom:8px'>
-<div style='color:#4ade80;font-size:10px;font-weight:600'>&#10003; Saudi EWP Online</div>
-<div style='color:#6b7280;font-size:10px;line-height:1.5'>
-Abqaiq → Yanbu<br>5.0 mb/day cap · ~2.5 active<br>
-<span style='color:#8b8fa8'>Bypasses Hormuz entirely</span></div>
+<div style='color:#39ff14;font-size:10px;font-weight:600'>&#10003; Saudi EWP Online</div>
+<div style='color:#555555;font-size:10px;line-height:1.5'>
+Abqaiq → Yanbu<br>5.0 mb/day cap · ~2.5 active</div>
 </div>
 
 <div>
-<div style='color:#4ade80;font-size:10px;font-weight:600'>&#10003; UAE ADCOP Online</div>
-<div style='color:#6b7280;font-size:10px;line-height:1.5'>
-Habshan → Fujairah<br>1.5 mb/day cap · active<br>
-<span style='color:#8b8fa8'>Exits into Gulf of Oman</span></div>
+<div style='color:#39ff14;font-size:10px;font-weight:600'>&#10003; UAE ADCOP Online</div>
+<div style='color:#555555;font-size:10px;line-height:1.5'>
+Habshan → Fujairah<br>1.5 mb/day cap · active</div>
 </div>
 </div>
 
-<div style='border-top:1px solid #2d3139;padding-top:12px'>
-<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
-letter-spacing:0.08em;margin-bottom:8px'>Recent Signals</div>
+<div style='border-top:1px solid #1a1a1a;padding-top:12px'>
+<div style='color:#555555;font-size:9px;text-transform:uppercase;
+letter-spacing:0.1em;margin-bottom:8px'>Recent Signals</div>
 {sig_rows}
 </div>
 
 </div>
 """, unsafe_allow_html=True)
 
-with map_col:
-    event = st.plotly_chart(fig, key="energy_map", on_select="rerun", use_container_width=True,
+with globe_col:
+    event = st.plotly_chart(fig, key="energy_map", on_select="rerun",
+                            use_container_width=True,
                             config={"scrollZoom": False, "displayModeBar": False})
-with legend_col:
-    st.markdown("""
-<div style='background:#1c1f26;border:1px solid #2d3139;border-radius:4px;
-padding:14px 16px;font-family:Inter,sans-serif;margin-top:4px'>
-
-<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
-letter-spacing:0.08em;margin-bottom:10px'>Infrastructure</div>
-
-<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
-letter-spacing:0.06em;margin-bottom:6px'>Pipelines</div>
-
-<div style='display:flex;align-items:center;gap:8px;margin-bottom:7px'>
-  <div style='width:24px;height:2px;background:#f59e0b;flex-shrink:0'></div>
-  <div>
-    <div style='color:#e8eaf0;font-size:11px;font-weight:600'>CPC</div>
-    <div style='color:#6b7280;font-size:10px'>Tengiz → Novorossiysk<br>1,511 km · oil</div>
-  </div>
-</div>
-
-<div style='display:flex;align-items:center;gap:8px;margin-bottom:7px'>
-  <div style='width:24px;height:2px;background:#4ade80;flex-shrink:0'></div>
-  <div>
-    <div style='color:#e8eaf0;font-size:11px;font-weight:600'>BTC</div>
-    <div style='color:#6b7280;font-size:10px'>Baku → Ceyhan<br>1,768 km · oil</div>
-  </div>
-</div>
-
-<div style='display:flex;align-items:center;gap:8px;margin-bottom:7px'>
-  <div style='width:24px;height:2px;background:#a78bfa;border-top:2px dotted #a78bfa;flex-shrink:0'></div>
-  <div>
-    <div style='color:#e8eaf0;font-size:11px;font-weight:600'>TANAP</div>
-    <div style='color:#6b7280;font-size:10px'>AZ → Turkey → EU<br>1,850 km · gas</div>
-  </div>
-</div>
-
-<div style='display:flex;align-items:center;gap:8px;margin-bottom:12px'>
-  <div style='width:24px;height:2px;background:#22d3ee;border-top:2px dotted #22d3ee;flex-shrink:0'></div>
-  <div>
-    <div style='color:#e8eaf0;font-size:11px;font-weight:600'>TKM–China</div>
-    <div style='color:#6b7280;font-size:10px'>Galkynysh → Xinjiang<br>~1,800 km · gas</div>
-  </div>
-</div>
-
-<div style='border-top:1px solid #2d3139;margin-bottom:10px'></div>
-
-<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
-letter-spacing:0.06em;margin-bottom:6px'>LNG Export Hubs</div>
-
-<div style='display:flex;align-items:center;gap:8px;margin-bottom:5px'>
-  <div style='width:8px;height:8px;border-radius:50%;background:#e8eaf0;flex-shrink:0'></div>
-  <div style='color:#c8ccd8;font-size:10px'>Ras Laffan (QAT)</div>
-</div>
-<div style='display:flex;align-items:center;gap:8px;margin-bottom:5px'>
-  <div style='width:8px;height:8px;border-radius:50%;background:#e8eaf0;flex-shrink:0'></div>
-  <div style='color:#c8ccd8;font-size:10px'>Das Island (UAE)</div>
-</div>
-<div style='display:flex;align-items:center;gap:8px;margin-bottom:5px'>
-  <div style='width:8px;height:8px;border-radius:50%;background:#e8eaf0;flex-shrink:0'></div>
-  <div style='color:#c8ccd8;font-size:10px'>Oman LNG, Sur</div>
-</div>
-<div style='display:flex;align-items:center;gap:8px;margin-bottom:12px'>
-  <div style='width:8px;height:8px;border-radius:50%;background:#e8eaf0;flex-shrink:0'></div>
-  <div style='color:#c8ccd8;font-size:10px'>South Pars (IRN)</div>
-</div>
-
-<div style='border-top:1px solid #2d3139;margin-bottom:10px'></div>
-
-<div style='color:#8b8fa8;font-size:9px;text-transform:uppercase;
-letter-spacing:0.06em;margin-bottom:6px'>Chokepoint</div>
-
-<div style='display:flex;align-items:center;gap:8px'>
-  <div style='color:#f87171;font-size:14px;line-height:1;flex-shrink:0'>✕</div>
-  <div>
-    <div style='color:#f87171;font-size:11px;font-weight:600'>Hormuz</div>
-    <div style='color:#6b7280;font-size:10px'>~20% global oil trade<br>~17 mb/day in transit</div>
-  </div>
-</div>
-
-</div>
-""", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='color:#555555;font-size:11px;margin-top:4px;padding-left:2px'>"
+        "<span style='color:#39ff14'>■</span> Central Asia &nbsp;|&nbsp; "
+        "<span style='color:#f59e0b'>■</span> Middle East &nbsp;|&nbsp; "
+        "<span style='color:#ff3131'>—</span> CPC pipeline &nbsp;|&nbsp; "
+        "<span style='color:#ff3131'>✕</span> Chokepoints — drag to rotate"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 # Parse clicked country ISO from customdata or location
 if event and event.selection and event.selection.points:
@@ -690,8 +562,8 @@ if iso and iso in COUNTRY_META:
     )
     st.markdown(f"""
     <div class='info-panel {accent}'>
-        <div style='color:#e8eaf0;font-weight:600;font-size:15px'>{title}</div>
-        <div style='color:#8b8fa8;font-size:13px;margin-top:6px;line-height:1.7'>{desc}</div>
+        <div style='color:#e8eaf0;font-weight:600;font-size:14px'>{title}</div>
+        <div style='color:#a0a0a0;font-size:12px;margin-top:6px;line-height:1.7'>{desc}</div>
         <div class='kpi-row'>{kpi_html}</div>
         <a class='nav-btn {btn_cls}' href='{page_slug}' target='_self'>{btn_label}</a>
     </div>
@@ -700,7 +572,7 @@ else:
     pass  # no instruction text — map is self-evident
 
 # ── Latest Headlines ───────────────────────────────────────────────────────────
-st.markdown("<div class='sec padded' style='margin-top:28px'>Latest Intelligence</div>",
+st.markdown("<div class='sec padded' style='margin-top:20px'>Latest Intelligence</div>",
             unsafe_allow_html=True)
 
 top5 = articles[:5]

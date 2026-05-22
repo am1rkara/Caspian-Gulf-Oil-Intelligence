@@ -11,11 +11,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+import yfinance as yf
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 
-from src.utils.css import inject_css, sparkline_svg, mc_card
+from src.utils.css import inject_css, sparkline_svg, mc_card, TERMINAL_PLOT, TERMINAL_GRID
 from src.nav import render_sidebar
 from src.data.market import get_prices
 from src.data.eia import get_production
@@ -27,14 +28,10 @@ inject_css()
 render_sidebar()
 
 st.markdown("<h1>Gulf Markets</h1>", unsafe_allow_html=True)
+st.markdown("<div class='pg-desc'>Supply positioning, curve structure, and fiscal stress across OPEC+ Gulf producers.</div>", unsafe_allow_html=True)
 
-PLOT = dict(
-    template="plotly_dark",
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter, sans-serif", color="#8b8fa8", size=11),
-)
-GRID = "#1e2128"
+PLOT = TERMINAL_PLOT
+GRID = TERMINAL_GRID
 
 # ── Loaders ────────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=60)
@@ -44,6 +41,38 @@ def load_prices():
 @st.cache_data(ttl=21600)
 def load_production():
     return get_production(os.getenv("EIA_API_KEY"))
+
+@st.cache_data(ttl=3600)
+def load_curve_data(spot_brent: float):
+    """Returns (spread_df, fwd_price, fwd_label) for Brent curve structure."""
+    # Today is May 2026 — try Nov 2026 contract first, then others
+    candidates = ["BZX26=F", "BZV26=F", "BZZ26=F", "BZM6=F", "BZN26=F"]
+    try:
+        df_spot = yf.download("BZ=F", period="90d", progress=False,
+                              auto_adjust=True)["Close"].dropna()
+        df_spot.index = pd.to_datetime(df_spot.index).tz_localize(None)
+        for ticker in candidates:
+            try:
+                df_fwd = yf.download(ticker, period="90d", progress=False,
+                                     auto_adjust=True)["Close"].dropna()
+                if len(df_fwd) < 10:
+                    continue
+                df_fwd.index = pd.to_datetime(df_fwd.index).tz_localize(None)
+                merged = df_spot.rename("front").to_frame().join(
+                    df_fwd.rename("fwd"), how="inner"
+                )
+                if len(merged) < 10:
+                    continue
+                merged["spread"] = merged["front"] - merged["fwd"]
+                fwd_price = float(df_fwd.iloc[-1])
+                return merged.reset_index().rename(columns={"index": "date", "Date": "date"}), fwd_price, ticker
+            except Exception:
+                continue
+    except Exception:
+        pass
+    # Carry model fallback: 5% annualised / 2 for 6M
+    fwd_implied = round(spot_brent * (1 + 0.05 / 2), 2)
+    return pd.DataFrame(), fwd_implied, "implied 6M (carry model)"
 
 prices     = load_prices()
 production = load_production()
@@ -253,3 +282,62 @@ with st.expander("Methodology — Urals proxy"):
         "after the G7 $60/bbl price cap (Dec 2022). "
         "Current proxy uses the stabilised post-cap level as structural baseline."
     )
+
+# ── Brent Curve Structure — Contango / Backwardation ─────────────────────────
+st.markdown("<div class='sec'>Brent Curve Structure</div>", unsafe_allow_html=True)
+
+curve_df, fwd_price, fwd_label = load_curve_data(brent)
+spot_minus_fwd = round(brent - fwd_price, 2)
+is_backw = spot_minus_fwd > 0
+curve_state = "BACKWARDATION" if is_backw else "CONTANGO"
+curve_color = "#39ff14" if is_backw else "#ff3131"
+sign_str    = f"+${spot_minus_fwd:.2f}" if is_backw else f"-${abs(spot_minus_fwd):.2f}"
+
+st.markdown(
+    f"<div style='font-size:14px;font-weight:700;color:{curve_color};"
+    f"letter-spacing:0.05em;margin-bottom:4px'>"
+    f"{curve_state} {sign_str} &nbsp;"
+    f"<span style='color:#555555;font-size:11px;font-weight:400'>"
+    f"front ${brent:.1f} vs 6M ${fwd_price:.1f} ({fwd_label})</span></div>",
+    unsafe_allow_html=True,
+)
+
+if not curve_df.empty and "spread" in curve_df.columns:
+    date_col = "date" if "date" in curve_df.columns else curve_df.columns[0]
+    fig_curve = go.Figure()
+    spread_vals = curve_df["spread"].tolist()
+    dates_vals  = curve_df[date_col].tolist()
+
+    pos_y = [v if v > 0 else 0 for v in spread_vals]
+    neg_y = [v if v < 0 else 0 for v in spread_vals]
+
+    fig_curve.add_trace(go.Scatter(
+        x=dates_vals, y=pos_y,
+        fill="tozeroy", fillcolor="rgba(57,255,20,0.12)",
+        line=dict(width=0), showlegend=False, hoverinfo="skip",
+    ))
+    fig_curve.add_trace(go.Scatter(
+        x=dates_vals, y=neg_y,
+        fill="tozeroy", fillcolor="rgba(255,49,49,0.12)",
+        line=dict(width=0), showlegend=False, hoverinfo="skip",
+    ))
+    fig_curve.add_trace(go.Scatter(
+        x=dates_vals, y=spread_vals,
+        mode="lines", line=dict(color="#39ff14", width=1.5),
+        name="Front – 6M",
+        hovertemplate="%{x|%b %d}: %{y:+.2f}<extra></extra>",
+    ))
+    fig_curve.add_hline(y=0, line_dash="dash", line_color="#555555", line_width=1)
+    fig_curve.update_layout(
+        **PLOT, height=260, showlegend=False,
+        margin=dict(l=0, r=0, t=0, b=0),
+        yaxis=dict(title="$/bbl (front – 6M)", gridcolor=GRID, title_font=dict(size=10)),
+        xaxis=dict(gridcolor=GRID),
+    )
+    st.plotly_chart(fig_curve, use_container_width=True)
+
+st.markdown(
+    "<div class='muted'>Backwardation signals physical tightness. Sustained backwardation "
+    "is consistent with Hormuz supply risk premium.</div>",
+    unsafe_allow_html=True,
+)
