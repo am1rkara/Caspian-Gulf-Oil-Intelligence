@@ -159,17 +159,21 @@ fig_opec = go.Figure()
 fig_opec.add_trace(go.Bar(
     x=countries,
     y=[gaps[c]["quota"] for c in countries],
-    name="Quota", marker_color="#3b82f6", opacity=0.5,
+    name="Quota",
+    marker_color="#1e3a5f",
+    marker_line_color="#3b82f6",
+    marker_line_width=1,
 ))
 fig_opec.add_trace(go.Bar(
     x=countries,
     y=[gaps[c]["production"] for c in countries],
     name="Production",
-    marker_color=["#f87171" if not gaps[c]["compliant"] else "#4ade80"
-                  for c in countries],
+    marker_color=["rgba(248,113,113,0.85)" if not gaps[c]["compliant"]
+                  else "rgba(74,222,128,0.85)" for c in countries],
 ))
 fig_opec.update_layout(
-    **PLOT, height=250, barmode="overlay",
+    **PLOT, height=260, barmode="group",
+    bargap=0.2, bargroupgap=0.05,
     legend=dict(orientation="h", y=-0.22, font=dict(size=11)),
     margin=dict(l=0, r=0, t=0, b=0),
     yaxis=dict(title="kbd", gridcolor=GRID, title_font=dict(size=11)),

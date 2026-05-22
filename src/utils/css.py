@@ -33,7 +33,7 @@ html, body {
 
 /* ── Full-width layout, clear fixed topnav ── */
 .main .block-container {
-    padding: 58px 2.5rem 2rem !important;
+    padding: 66px 2.5rem 2rem !important;
     max-width: 100% !important;
 }
 
@@ -53,7 +53,7 @@ button[data-testid="baseButton-headerNoPadding"],
     left: 0;
     right: 0;
     z-index: 9999;
-    height: 44px;
+    height: 52px;
     background: #000000;
     border-bottom: 1px solid #1a1a1a;
     display: flex;
@@ -63,7 +63,7 @@ button[data-testid="baseButton-headerNoPadding"],
 }
 .tnav-brand {
     color: #39ff14;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.2em;
     text-transform: uppercase;
@@ -71,28 +71,34 @@ button[data-testid="baseButton-headerNoPadding"],
     flex-shrink: 0;
     border-right: 1px solid #1a1a1a;
     padding-right: 32px;
+    height: 52px;
+    display: flex;
+    align-items: center;
 }
 .tnav-links {
     display: flex;
     align-items: center;
     flex: 1;
+    height: 52px;
+    overflow: visible;
 }
 .tnav-link {
-    color: #444444 !important;
-    font-size: 10px;
+    color: #888888 !important;
+    font-size: 11px;
     font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     text-decoration: none !important;
-    padding: 0 16px;
-    height: 44px;
+    padding: 0 18px;
+    height: 52px;
     display: flex;
     align-items: center;
     border-bottom: 2px solid transparent;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 .tnav-link:hover {
-    color: #888888 !important;
+    color: #bbbbbb !important;
     text-decoration: none !important;
 }
 .tnav-active {
@@ -100,7 +106,7 @@ button[data-testid="baseButton-headerNoPadding"],
     border-bottom: 2px solid #39ff14 !important;
 }
 .tnav-ts {
-    color: #2a2a2a;
+    color: #333333;
     font-size: 9px;
     letter-spacing: 0.05em;
     flex-shrink: 0;

@@ -349,7 +349,7 @@ fig.add_trace(go.Scattergeo(
     name="Chokepoints",
 ))
 
-GLOBE_H = 480
+GLOBE_H = 540
 
 fig.update_layout(
     geo=dict(
@@ -388,7 +388,7 @@ def _render_globe():
     _h      = d.get("hormuz",   {"level": "—", "color": "#555555",
                                  "count": 0, "articles": []})
 
-    status_col, globe_col, info_col = st.columns([1, 3, 2])
+    status_col, globe_col, info_col = st.columns([1, 4, 1.5])
 
     # ── Hormuz Status Panel ────────────────────────────────────────────────────
     with status_col:
@@ -528,26 +528,29 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
                 kpis = [("Brent spot", f"${_brent:.1f}")]
 
             kpi_html = "".join(
-                f"<div class='kpi-item' style='min-width:0'>"
-                f"<div class='kpi-l'>{lbl}</div>"
-                f"<div class='kpi-v'>{val}</div></div>"
+                f"<div style='display:flex;justify-content:space-between;align-items:baseline;"
+                f"border-bottom:1px solid #111;padding:4px 0'>"
+                f"<span style='color:#555555;font-size:9px;text-transform:uppercase;"
+                f"letter-spacing:0.08em'>{lbl}</span>"
+                f"<span style='color:#e8eaf0;font-size:12px;font-weight:600'>{val}</span>"
+                f"</div>"
                 for lbl, val in kpis
             )
             nav_border = "#39ff14" if not btn_cls else "#f59e0b"
             st.markdown(f"""
 <div style='background:#0a0a0a;border:1px solid #1a1a1a;
-border-left:3px solid {border_col};padding:16px 18px;margin-top:2px;
+border-left:3px solid {border_col};padding:12px 14px;margin-top:2px;
 height:{GLOBE_H}px;overflow-y:auto;box-sizing:border-box'>
-<div style='color:#e8eaf0;font-weight:700;font-size:16px;
-letter-spacing:0.01em;margin-bottom:6px'>{title}</div>
-<div style='color:#a0a0a0;font-size:11px;line-height:1.7;
-margin-bottom:14px'>{desc}</div>
-<div style='display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px'>
+<div style='color:#e8eaf0;font-weight:700;font-size:13px;
+letter-spacing:0.01em;margin-bottom:5px'>{title}</div>
+<div style='color:#666666;font-size:10px;line-height:1.6;
+margin-bottom:10px'>{desc}</div>
+<div style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px'>
 {kpi_html}
 </div>
 <a href='{page_slug}' target='_self'
 style='display:inline-block;background:#000;border:1px solid {nav_border};
-padding:6px 14px;color:{nav_border};font-size:11px;font-weight:500;
+padding:5px 12px;color:{nav_border};font-size:10px;font-weight:500;
 text-decoration:none;letter-spacing:0.03em'>{btn_label}</a>
 </div>
 """, unsafe_allow_html=True)
