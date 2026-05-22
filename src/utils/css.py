@@ -190,15 +190,41 @@ details[data-testid="stExpander"] {
     margin: 6px 0 !important;
 }
 details[data-testid="stExpander"] > summary {
-    padding: 8px 14px !important;
+    padding: 8px 36px 8px 14px !important;
     list-style: none !important;
+    position: relative !important;
+    cursor: pointer !important;
 }
+/* Kill all default browser disclosure triangles */
 details[data-testid="stExpander"] > summary::marker,
 details[data-testid="stExpander"] > summary::-webkit-details-marker {
     display: none !important;
-    content: none !important;
+    content: "" !important;
 }
-[data-testid="stExpanderToggleIcon"] { display: none !important; }
+/* Kill Streamlit's SVG toggle icon */
+[data-testid="stExpanderToggleIcon"] {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+}
+/* Custom ↓ arrow that rotates when open */
+details[data-testid="stExpander"] > summary::after {
+    content: "↓";
+    color: #555555;
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-block;
+    transition: transform 0.15s ease;
+    line-height: 1;
+    pointer-events: none;
+}
+details[data-testid="stExpander"][open] > summary::after {
+    transform: translateY(-50%) rotate(180deg);
+}
 details[data-testid="stExpander"] > summary p,
 details[data-testid="stExpander"] > summary span {
     font-size: 10px !important;
@@ -207,21 +233,28 @@ details[data-testid="stExpander"] > summary span {
     letter-spacing: 0.1em !important;
     font-weight: 500 !important;
     margin: 0 !important;
+    font-family: 'IBM Plex Mono', monospace !important;
 }
 details[data-testid="stExpander"] > div {
-    padding: 4px 16px 12px !important;
+    border-top: 1px solid #1a1a1a !important;
+    padding: 10px 16px 14px !important;
 }
 details[data-testid="stExpander"] > div p,
 details[data-testid="stExpander"] > div li {
     font-size: 11px !important;
     color: #a0a0a0 !important;
-    line-height: 1.65 !important;
+    line-height: 1.7 !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+}
+details[data-testid="stExpander"] > div strong {
+    color: #e8eaf0 !important;
 }
 .streamlit-expanderHeader {
     font-size: 10px !important;
     color: #555555 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.1em !important;
+    font-family: 'IBM Plex Mono', monospace !important;
 }
 
 /* Sparkline box */

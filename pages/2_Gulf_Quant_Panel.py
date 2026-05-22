@@ -45,33 +45,53 @@ def load_production():
 @st.cache_data(ttl=3600)
 def load_curve_data(spot_brent: float):
     """Returns (spread_df, fwd_price, fwd_label) for Brent curve structure."""
-    # Today is May 2026 — try Nov 2026 contract first, then others
+    def _series(raw_close):
+        """Coerce yfinance Close (may be DataFrame) to a plain Series."""
+        if isinstance(raw_close, pd.DataFrame):
+            return raw_close.iloc[:, 0].dropna()
+        return raw_close.dropna()
+
+    def _clean_index(s):
+        idx = pd.DatetimeIndex(s.index)
+        return s.set_axis(idx.tz_localize(None) if idx.tz is None else idx.tz_convert(None))
+
     candidates = ["BZX26=F", "BZV26=F", "BZZ26=F", "BZM6=F", "BZN26=F"]
+    spot_series = pd.Series(dtype=float)
     try:
-        df_spot = yf.download("BZ=F", period="90d", progress=False,
-                              auto_adjust=True)["Close"].dropna()
-        df_spot.index = pd.to_datetime(df_spot.index).tz_localize(None)
+        spot_series = _clean_index(_series(
+            yf.download("BZ=F", period="90d", progress=False, auto_adjust=True)["Close"]
+        ))
         for ticker in candidates:
             try:
-                df_fwd = yf.download(ticker, period="90d", progress=False,
-                                     auto_adjust=True)["Close"].dropna()
-                if len(df_fwd) < 10:
+                fwd_series = _clean_index(_series(
+                    yf.download(ticker, period="90d", progress=False, auto_adjust=True)["Close"]
+                ))
+                if len(fwd_series) < 10:
                     continue
-                df_fwd.index = pd.to_datetime(df_fwd.index).tz_localize(None)
-                merged = df_spot.rename("front").to_frame().join(
-                    df_fwd.rename("fwd"), how="inner"
+                merged = spot_series.rename("front").to_frame().join(
+                    fwd_series.rename("fwd"), how="inner"
                 )
                 if len(merged) < 10:
                     continue
                 merged["spread"] = merged["front"] - merged["fwd"]
-                fwd_price = float(df_fwd.iloc[-1])
-                return merged.reset_index().rename(columns={"index": "date", "Date": "date"}), fwd_price, ticker
+                fwd_price = float(fwd_series.iloc[-1])
+                out = merged.reset_index()
+                out.columns = ["date"] + list(out.columns[1:])
+                return out, fwd_price, ticker
             except Exception:
                 continue
     except Exception:
         pass
-    # Carry model fallback: 5% annualised / 2 for 6M
-    fwd_implied = round(spot_brent * (1 + 0.05 / 2), 2)
+
+    # Carry model fallback — build synthetic series from spot history
+    carry_rate = 0.05 / 2
+    fwd_implied = round(spot_brent * (1 + carry_rate), 2)
+    if len(spot_series) > 10:
+        synth_df = pd.DataFrame({
+            "date":   spot_series.index.to_list(),
+            "spread": (-(spot_series * carry_rate)).round(2).to_list(),
+        })
+        return synth_df, fwd_implied, "implied 6M (carry model)"
     return pd.DataFrame(), fwd_implied, "implied 6M (carry model)"
 
 prices     = load_prices()

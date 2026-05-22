@@ -396,11 +396,12 @@ fig.update_layout(
         projection_type="orthographic",
         projection_rotation=dict(lon=55, lat=30, roll=0),
         showframe=False,
-        showcoastlines=True, coastlinecolor="#1a1a1a", coastlinewidth=0.4,
-        showland=True,  landcolor="#0a0a0a",
+        showcoastlines=True, coastlinecolor="#3a3a3a", coastlinewidth=0.8,
+        showland=True,  landcolor="#1c1c1c",
         showocean=True, oceancolor="#000000",
-        showlakes=False, showrivers=False,
-        showcountries=True, countrycolor="#1a1a1a", countrywidth=0.3,
+        showlakes=True, lakecolor="#000000",
+        showrivers=False,
+        showcountries=True, countrycolor="#2e2e2e", countrywidth=0.5,
         bgcolor="#000000",
     ),
     paper_bgcolor="#000000",
@@ -473,7 +474,7 @@ letter-spacing:0.1em;margin-bottom:8px'>Recent Signals</div>
 with globe_col:
     event = st.plotly_chart(fig, key="energy_map", on_select="rerun",
                             use_container_width=True,
-                            config={"scrollZoom": False, "displayModeBar": False})
+                            config={"scrollZoom": True, "displayModeBar": False})
     st.markdown(
         "<div style='color:#555555;font-size:11px;margin-top:4px;padding-left:2px'>"
         "<span style='color:#39ff14'>■</span> Central Asia &nbsp;|&nbsp; "
