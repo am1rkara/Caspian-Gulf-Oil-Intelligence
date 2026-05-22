@@ -18,7 +18,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timezone
 
 from src.utils.css import inject_css, sparkline_svg, mc_card
-from src.nav import render_sidebar
+from src.nav import render_topnav
 from src.data.market import get_prices
 from src.metrics.hormuz import get_hormuz_status
 from src.data.imf import IMF_BREAKEVENS_USD, OPEC_QUOTAS_KBPD, URALS_DISCOUNT
@@ -28,48 +28,17 @@ from src.feeds.rss import get_articles
 st.set_page_config(
     page_title="Caspian-Gulf Oil Intelligence",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 inject_css()
-render_sidebar()
+render_topnav("Overview")
 st.markdown("""
 <style>
-.main .block-container {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    padding-top: 1.2rem !important;
-    max-width: 100% !important;
-}
-.padded { padding: 0 2rem; }
-
-.info-panel {
-    background: #0a0a0a;
-    border: 1px solid #1a1a1a;
-    border-radius: 0;
-    padding: 18px 22px;
-    margin: 12px 2rem 0;
-}
-.info-panel.ca  { border-left: 3px solid #39ff14; }
-.info-panel.me  { border-left: 3px solid #f59e0b; }
-.info-panel.dim { border-left: 3px solid #1a1a1a; }
-
-.kpi-row { display: flex; gap: 28px; margin-top: 14px; flex-wrap: wrap; }
-.kpi-item { display: flex; flex-direction: column; gap: 2px; }
+.padded { padding: 0; }
+.kpi-row { display: flex; gap: 24px; margin-top: 12px; flex-wrap: wrap; }
+.kpi-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .kpi-l { color: #555555; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; }
-.kpi-v { color: #e8eaf0; font-size: 16px; font-weight: 600; letter-spacing: 0.02em; }
-
-.nav-btn {
-    display: inline-block;
-    background: #000000; border: 1px solid #39ff14; border-radius: 0;
-    padding: 6px 14px; color: #39ff14 !important;
-    font-size: 11px; font-weight: 500; margin-top: 14px;
-    text-decoration: none !important;
-}
-.nav-btn:hover { background: #0a0a0a; color: #39ff14 !important; }
-.nav-btn.purple {
-    background: #000000; border-color: #f59e0b; color: #f59e0b !important;
-}
-.nav-btn.purple:hover { background: #0a0a0a; }
+.kpi-v { color: #e8eaf0; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -211,18 +180,8 @@ cpc      = cpc_utilization(kz_prod)
 hormuz = get_hormuz_status(articles)
 
 # ── Header (padded) ────────────────────────────────────────────────────────────
-top_l, top_r = st.columns([5, 1])
-with top_l:
-    st.markdown(
-        "<div class='padded'>"
-        "<h1>Caspian-Gulf Oil Intelligence</h1>"
-        "<div class='pg-desc'>Caspian-Gulf energy risk monitor. Click a region to explore.</div>"
-        "</div>",
-        unsafe_allow_html=True)
-with top_r:
-    st.markdown(f"<div class='padded muted' style='text-align:right;margin-top:12px'>"
-                f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</div>",
-                unsafe_allow_html=True)
+st.markdown("<h1>Caspian-Gulf Oil Intelligence</h1>", unsafe_allow_html=True)
+st.markdown("<div class='pg-desc'>Caspian-Gulf energy risk monitor. Click a region on the globe to explore.</div>", unsafe_allow_html=True)
 
 # ── Summary Card ──────────────────────────────────────────────────────────────
 _hcol  = hormuz["color"]
@@ -234,8 +193,7 @@ _fbuf_hi  = round(_fbuf + 2)
 _fbuf_cls  = "rgba(74,222,128,0.12)" if _fbuf >= 0 else "rgba(248,113,113,0.12)"
 _fbuf_tcls = "#4ade80" if _fbuf >= 0 else "#f87171"
 st.markdown(f"""
-<div class='padded' style='margin-bottom:4px'>
-<div style='background:#0a0a0a;border:1px solid #1a1a1a;padding:18px 22px;'>
+<div style='background:#0a0a0a;border:1px solid #1a1a1a;padding:16px 20px;margin-bottom:12px'>
 <p style='font-size:9px;letter-spacing:0.1em;text-transform:uppercase;
 color:#555555;margin:0 0 10px'>About this terminal</p>
 <p style='font-size:13px;line-height:1.7;color:#a0a0a0;margin:0 0 10px'>
@@ -251,7 +209,7 @@ This terminal tracks that transmission mechanism in real time — Gulf chokepoin
 OPEC+ compliance, CPC throughput, KZT fair value, and the fiscal buffer between
 Kazakhstan and a revenue shortfall.
 </p>
-</div></div>
+</div>
 """, unsafe_allow_html=True)
 
 # ── Market Metric Cards ────────────────────────────────────────────────────────
@@ -273,7 +231,7 @@ def _spk(svg: str) -> str:
             f'{svg}</div>')
 
 st.markdown(f"""
-<div class='padded' style='margin:10px 0 14px'>
+<div style='margin:10px 0 14px'>
 <div style='display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px'>
   <div class='mc'>
     <div class='mc-l'>Brent Spot</div>
@@ -391,6 +349,8 @@ fig.add_trace(go.Scattergeo(
     name="Chokepoints",
 ))
 
+GLOBE_H = 480
+
 fig.update_layout(
     geo=dict(
         projection_type="orthographic",
@@ -406,8 +366,9 @@ fig.update_layout(
     ),
     paper_bgcolor="#000000",
     margin=dict(l=0, r=0, t=0, b=0),
-    height=520,
+    height=GLOBE_H,
     showlegend=False,
+    dragmode=False,
 )
 
 # Store live data for the fragment (fragment reruns don't re-execute outer scope)
@@ -440,30 +401,36 @@ def _render_globe():
         ) or "<div style='color:#555555;font-size:10px'>No recent signals in feed</div>"
 
         st.markdown(f"""
-<div style='background:#0a0a0a;border:1px solid #1a1a1a;padding:14px;'>
+<div style='background:#0a0a0a;border:1px solid #1a1a1a;padding:14px;
+height:{GLOBE_H}px;overflow-y:auto;box-sizing:border-box'>
 
 <div style='color:#555555;font-size:9px;text-transform:uppercase;
-letter-spacing:0.1em;margin-bottom:6px'>Hormuz Status</div>
-<div style='color:{_h["color"]};font-size:14px;font-weight:700;
-margin-bottom:2px'>{_h["level"]}</div>
+letter-spacing:0.1em;margin-bottom:4px'>Hormuz Status</div>
+<div style='color:{_h["color"]};font-size:16px;font-weight:700;
+letter-spacing:0.04em;margin-bottom:2px'>{_h["level"]}</div>
 <div style='color:#555555;font-size:10px;margin-bottom:10px'>
-{_h["count"]} signal{"s" if _h["count"]!=1 else ""} in last 7 days</div>
+{_h["count"]} signal{"s" if _h["count"]!=1 else ""} · last 7 days</div>
 
-<div style='background:#050505;border:1px solid #1a1a1a;
-padding:8px 10px;margin-bottom:12px;font-size:9px;line-height:1.8'>
-<div style='color:#555555;text-transform:uppercase;letter-spacing:0.08em;
-margin-bottom:4px'>How signals work</div>
-<div style='color:#444'>Live RSS articles matching Hormuz/Iran/strait
-keywords in past 7 days.</div>
-<div style='margin-top:4px'>
-<span style='color:#39ff14'>NORMAL</span>
-<span style='color:#333333'> 0–2 &nbsp;·&nbsp; </span>
-<span style='color:#f59e0b'>ELEVATED</span>
-<span style='color:#333333'> 3–5 &nbsp;·&nbsp; </span>
-<span style='color:#f87171'>HEIGHTENED</span>
-<span style='color:#333333'> 6+</span></div>
-<div style='color:#444;margin-top:4px'>Level drives the disruption
-fraction used in Hormuz Decomposition.</div>
+<div style='border-top:1px solid #1a1a1a;padding-top:10px;margin-bottom:10px'>
+<div style='color:#555555;font-size:9px;text-transform:uppercase;
+letter-spacing:0.1em;margin-bottom:6px'>Signal derivation</div>
+<div style='color:#3a3a3a;font-size:9px;line-height:1.7'>
+Each hourly RSS article is scanned for 12 keywords in title + body:<br>
+<span style='color:#444444'>hormuz · iran · irgc · tanker seized · strait ·
+blockade · escalat · gulf tension · oil attack · persian gulf ·
+naval · drone attack</span><br><br>
+Articles &gt;7 days old are excluded. Each matching article = 1 signal.
+</div>
+<div style='margin-top:8px;font-size:9px;line-height:2'>
+<div><span style='color:#39ff14;font-weight:600'>NORMAL</span>
+<span style='color:#2a2a2a'>&nbsp;0–2 → 0% strait disrupted</span></div>
+<div><span style='color:#f59e0b;font-weight:600'>ELEVATED</span>
+<span style='color:#2a2a2a'>&nbsp;3–5 → 15% (2.6 mb/day)</span></div>
+<div><span style='color:#f87171;font-weight:600'>HEIGHTENED</span>
+<span style='color:#2a2a2a'>&nbsp;6+ → 35% (6.0 mb/day)</span></div>
+</div>
+<div style='color:#2a2a2a;font-size:9px;margin-top:6px'>
+Fraction feeds the Hormuz Decomposition price model.</div>
 </div>
 
 <div style='border-top:1px solid #1a1a1a;padding-top:10px;margin-bottom:10px'>
@@ -496,7 +463,7 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
     with globe_col:
         event = st.plotly_chart(fig, key="energy_map", on_select="rerun",
                                 use_container_width=True,
-                                config={"scrollZoom": True, "displayModeBar": False})
+                                config={"scrollZoom": False, "displayModeBar": False})
         st.markdown(
             "<div style='color:#555555;font-size:10px;margin-top:4px;padding-left:2px'>"
             "<span style='color:#39ff14'>■</span> Central Asia &nbsp;|&nbsp; "
@@ -569,7 +536,8 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
             nav_border = "#39ff14" if not btn_cls else "#f59e0b"
             st.markdown(f"""
 <div style='background:#0a0a0a;border:1px solid #1a1a1a;
-border-left:3px solid {border_col};padding:16px 18px;margin-top:2px'>
+border-left:3px solid {border_col};padding:16px 18px;margin-top:2px;
+height:{GLOBE_H}px;overflow-y:auto;box-sizing:border-box'>
 <div style='color:#e8eaf0;font-weight:700;font-size:16px;
 letter-spacing:0.01em;margin-bottom:6px'>{title}</div>
 <div style='color:#a0a0a0;font-size:11px;line-height:1.7;
@@ -585,16 +553,16 @@ text-decoration:none;letter-spacing:0.03em'>{btn_label}</a>
 """, unsafe_allow_html=True)
         else:
             st.markdown(
-                "<div style='color:#2a2a2a;font-size:11px;margin-top:80px;"
-                "text-align:center;line-height:2;font-family:IBM Plex Mono,monospace'>"
-                "← Click a country<br>on the globe</div>",
+                f"<div style='color:#252525;font-size:10px;margin-top:{GLOBE_H//2 - 30}px;"
+                "text-align:center;line-height:2;font-family:IBM Plex Mono,monospace;'>"
+                "← click a country</div>",
                 unsafe_allow_html=True,
             )
 
 _render_globe()
 
 # ── Latest Headlines ───────────────────────────────────────────────────────────
-st.markdown("<div class='sec padded' style='margin-top:20px'>Latest Intelligence</div>",
+st.markdown("<div class='sec' style='margin-top:20px'>Latest Intelligence</div>",
             unsafe_allow_html=True)
 
 top5 = articles[:5]
@@ -610,11 +578,11 @@ if top5:
                  f"<span class='nc-title'><a href='{link}' target='_blank' rel='noopener'>{title}</a></span>"
                  f"<span class='nc-time'>{pub}</span>"
                  f"</div>")
-    st.markdown(f"<div class='padded'>{rows}"
+    st.markdown(f"{rows}"
                 f"<div style='margin-top:8px'>"
-                f"<a href='News_Intelligence' style='font-size:12px;color:#3b82f6'>View all intelligence</a>"
-                f"</div></div>",
+                f"<a href='News_Intelligence' style='font-size:11px;color:#39ff14'>"
+                f"View all intelligence →</a></div>",
                 unsafe_allow_html=True)
 else:
-    st.markdown("<div class='padded dim'>No headlines available.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='dim'>No headlines available.</div>", unsafe_allow_html=True)
 

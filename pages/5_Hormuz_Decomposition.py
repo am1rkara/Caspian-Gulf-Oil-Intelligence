@@ -18,15 +18,15 @@ import plotly.graph_objects as go
 from datetime import datetime, timezone
 
 from src.utils.css import inject_css, TERMINAL_PLOT, TERMINAL_GRID
-from src.nav import render_sidebar
+from src.nav import render_topnav
 from src.data.market import get_prices, get_brent_history
 from src.feeds.rss import get_articles
 from src.metrics.hormuz import get_hormuz_status, DISRUPTION_FRAC
 
 st.set_page_config(page_title="Hormuz Decomposition", layout="wide",
-                   initial_sidebar_state="expanded")
+                   initial_sidebar_state="collapsed")
 inject_css()
-render_sidebar()
+render_topnav("Hormuz")
 
 st.markdown("<h1>Hormuz Decomposition</h1>", unsafe_allow_html=True)
 st.markdown("<div class='pg-desc'>Separates live Brent into physical supply fundamentals and Hormuz geopolitical risk premium.</div>", unsafe_allow_html=True)

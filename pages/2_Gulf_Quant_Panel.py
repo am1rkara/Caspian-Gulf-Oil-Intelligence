@@ -17,15 +17,15 @@ import plotly.graph_objects as go
 import pandas as pd
 
 from src.utils.css import inject_css, sparkline_svg, mc_card, TERMINAL_PLOT, TERMINAL_GRID
-from src.nav import render_sidebar
+from src.nav import render_topnav
 from src.data.market import get_prices
 from src.data.eia import get_production
 from src.data.imf import IMF_BREAKEVENS_USD, OPEC_QUOTAS_KBPD, URALS_DISCOUNT
 from src.metrics.calculations import urals_proxy, brent_wti_spread, opec_gap
 
-st.set_page_config(page_title="Gulf Markets", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Gulf Markets", layout="wide", initial_sidebar_state="collapsed")
 inject_css()
-render_sidebar()
+render_topnav("Gulf")
 
 st.markdown("<h1>Gulf Markets</h1>", unsafe_allow_html=True)
 st.markdown("<div class='pg-desc'>Supply positioning, curve structure, and fiscal stress across OPEC+ Gulf producers.</div>", unsafe_allow_html=True)

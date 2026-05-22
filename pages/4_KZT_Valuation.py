@@ -17,13 +17,13 @@ import streamlit as st
 import plotly.graph_objects as go
 
 from src.utils.css import inject_css, sparkline_svg, mc_card, TERMINAL_PLOT, TERMINAL_GRID
-from src.nav import render_sidebar
+from src.nav import render_topnav
 from src.data.market import get_prices, get_multi_history
 from src.metrics.calculations import multivariate_kzt_ols
 
-st.set_page_config(page_title="KZT Valuation", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="KZT Valuation", layout="wide", initial_sidebar_state="collapsed")
 inject_css()
-render_sidebar()
+render_topnav("KZT")
 
 st.markdown("<h1>KZT Valuation</h1>", unsafe_allow_html=True)
 st.markdown("<div class='pg-desc'>Multivariate FX model — KZT/USD against Brent, DXY, RUB with 2022 regime split.</div>", unsafe_allow_html=True)

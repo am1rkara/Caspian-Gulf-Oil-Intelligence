@@ -31,15 +31,80 @@ html, body {
 }
 [data-testid="stAppViewContainer"] { background: #000000 !important; }
 
+/* ── Full-width layout, clear fixed topnav ── */
 .main .block-container {
-    padding: 1rem 2rem !important;
+    padding: 58px 2.5rem 2rem !important;
     max-width: 100% !important;
 }
 
+/* ── Hide sidebar completely ── */
 section[data-testid="stSidebar"],
-[data-testid="stSidebar"] {
-    background: #050505 !important;
-    border-right: 1px solid #1a1a1a !important;
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"],
+button[data-testid="baseButton-headerNoPadding"],
+[data-testid="stSidebarNav"] {
+    display: none !important;
+}
+
+/* ── Top navigation bar (fixed) ── */
+.topnav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    height: 44px;
+    background: #000000;
+    border-bottom: 1px solid #1a1a1a;
+    display: flex;
+    align-items: center;
+    padding: 0 2.5rem;
+    gap: 0;
+}
+.tnav-brand {
+    color: #39ff14;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-right: 32px;
+    flex-shrink: 0;
+    border-right: 1px solid #1a1a1a;
+    padding-right: 32px;
+}
+.tnav-links {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+.tnav-link {
+    color: #444444 !important;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-decoration: none !important;
+    padding: 0 16px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+}
+.tnav-link:hover {
+    color: #888888 !important;
+    text-decoration: none !important;
+}
+.tnav-active {
+    color: #e8eaf0 !important;
+    border-bottom: 2px solid #39ff14 !important;
+}
+.tnav-ts {
+    color: #2a2a2a;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+    margin-left: auto;
 }
 
 #MainMenu, footer, [data-testid="stToolbar"],
@@ -267,27 +332,6 @@ details[data-testid="stExpander"] > div strong {
     align-items: center;
     flex-shrink: 0;
     overflow: hidden;
-}
-
-/* Sidebar navigation — larger, terminal-style */
-[data-testid="stSidebarNavLink"] {
-    padding: 7px 14px !important;
-    border-radius: 0 !important;
-}
-[data-testid="stSidebarNavLink"] p,
-[data-testid="stSidebarNavLink"] span {
-    font-size: 13px !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.02em !important;
-}
-[data-testid="stSidebarNavLink"][aria-current="page"] p,
-[data-testid="stSidebarNavLink"][aria-current="page"] span {
-    color: #39ff14 !important;
-    font-weight: 600 !important;
-}
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
-    font-size: 11px !important;
-    color: #555555 !important;
 }
 
 /* News rows */

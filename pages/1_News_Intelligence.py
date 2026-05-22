@@ -14,14 +14,14 @@ import streamlit as st
 from datetime import datetime, timezone
 
 from src.utils.css import inject_css
-from src.nav import render_sidebar
+from src.nav import render_topnav
 from src.feeds.rss import get_articles
 from src.feeds.ai_brief import generate_brief
 
 st.set_page_config(page_title="News Intelligence", layout="wide",
-                   initial_sidebar_state="expanded")
+                   initial_sidebar_state="collapsed")
 inject_css()
-render_sidebar()
+render_topnav("News")
 
 st.markdown("<h1>News Intelligence</h1>", unsafe_allow_html=True)
 st.markdown("<div class='pg-desc'>Live feed filtered for Central Asia and Gulf energy events.</div>", unsafe_allow_html=True)

@@ -18,7 +18,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from src.utils.css import inject_css, sparkline_svg, mc_card, TERMINAL_PLOT, TERMINAL_GRID
-from src.nav import render_sidebar
+from src.nav import render_topnav
 from src.data.market import get_prices, get_multi_history
 from src.data.eia import get_production
 from src.data.imf import IMF_BREAKEVENS_USD, OPEC_QUOTAS_KBPD, CPC_CAPACITY_KBPD, URALS_DISCOUNT
@@ -27,9 +27,9 @@ from src.metrics.calculations import (
     fiscal_nowcast, opec_gap, transmission_chain,
 )
 
-st.set_page_config(page_title="Central Asia", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Central Asia", layout="wide", initial_sidebar_state="collapsed")
 inject_css()
-render_sidebar()
+render_topnav("Central Asia")
 
 st.markdown("<h1>Central Asia Panel</h1>", unsafe_allow_html=True)
 st.markdown("<div class='pg-desc'>CPC export bottleneck, Kazakh fiscal transmission, and Urals realized pricing.</div>", unsafe_allow_html=True)
