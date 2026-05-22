@@ -325,38 +325,32 @@ fig_cpc_t.add_annotation(
     xanchor="right", xshift=-4, yshift=7,
 )
 
-# Event lines + staggered labels
+# Event lines + 4-level rotating annotations (never overlap)
 _ev_parsed = [(pd.to_datetime(e["date"]), e) for e in _CPC_EVENTS]
-
-# Compute stagger: alternate y-level for events within 60 days of each other
-_ylevels = []
-for i, (dt, _) in enumerate(_ev_parsed):
-    if i == 0:
-        _ylevels.append(1.04)
-    else:
-        gap = (dt - _ev_parsed[i - 1][0]).days
-        _ylevels.append(1.13 if gap <= 60 else 1.04)
+_Y = [1.04, 1.13, 1.22, 1.31]   # four distinct levels; t=105 margin fits all
 
 for i, (dt, ev) in enumerate(_ev_parsed):
     color = _SEV_COLOR[ev["severity"]]
     label = ev["label"].replace("\n", " ")
     fig_cpc_t.add_vline(
         x=str(dt.date()), line_dash="dash",
-        line_color=color, line_width=1, opacity=0.75,
+        line_color=color, line_width=1, opacity=0.7,
     )
     fig_cpc_t.add_annotation(
-        x=str(dt.date()), y=_ylevels[i],
+        x=str(dt.date()), y=_Y[i % 4],
         xref="x", yref="paper",
         text=label,
-        showarrow=False,
+        showarrow=True,
+        arrowhead=0, arrowwidth=1, arrowcolor=color,
+        ax=0, ay=16,
         font=dict(size=9, color=color, family="IBM Plex Mono, monospace"),
-        textangle=0,
         xanchor="center", yanchor="bottom",
+        bgcolor="#000000", borderpad=2,
     )
 
 fig_cpc_t.update_layout(
-    **PLOT, height=280, showlegend=False,
-    margin=dict(l=0, r=0, t=52, b=0),
+    **PLOT, height=300, showlegend=False,
+    margin=dict(l=0, r=0, t=105, b=0),
     yaxis=dict(title="MT/yr", gridcolor=GRID, title_font=dict(size=10),
                range=[40, 72]),
     xaxis=dict(gridcolor=GRID, tickformat="%Y", dtick="M12"),
