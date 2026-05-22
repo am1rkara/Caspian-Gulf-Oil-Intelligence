@@ -96,7 +96,10 @@ for a in articles:
     st.markdown(
         f"<div class='nc'>"
         f"<span class='nc-source'>{source}</span>"
-        f"<span class='nc-title'><a href='{link}' target='_blank' rel='noopener'>{title}</a></span>"
+        f"<span class='nc-title'>"
+        f"<a href='{link}' target='_blank' rel='noopener' "
+        f"style='color:#a0a0a0;text-decoration:none'>{title}</a>"
+        f"</span>"
         f"<span class='nc-time'>{pub}</span>"
         f"</div>",
         unsafe_allow_html=True,

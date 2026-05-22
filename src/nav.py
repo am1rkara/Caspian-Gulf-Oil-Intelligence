@@ -8,12 +8,12 @@ import streamlit as st
 from datetime import datetime, timezone
 
 _PAGES = [
-    ("Overview",       "app",                   "Overview"),
-    ("News Intel",     "News_Intelligence",      "News"),
-    ("Gulf Markets",   "Gulf_Quant_Panel",       "Gulf"),
-    ("Central Asia",   "Central_Asia_Panel",     "Central Asia"),
-    ("KZT Valuation",  "KZT_Valuation",          "KZT"),
-    ("Hormuz Decomp",  "Hormuz_Decomposition",   "Hormuz"),
+    ("Overview",       "/",                       "Overview"),
+    ("News Intel",     "/News_Intelligence",       "News"),
+    ("Gulf Markets",   "/Gulf_Quant_Panel",        "Gulf"),
+    ("Central Asia",   "/Central_Asia_Panel",      "Central Asia"),
+    ("KZT Valuation",  "/KZT_Valuation",           "KZT"),
+    ("Hormuz Decomp",  "/Hormuz_Decomposition",    "Hormuz"),
 ]
 
 

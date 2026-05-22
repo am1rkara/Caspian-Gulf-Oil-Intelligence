@@ -548,7 +548,7 @@ margin-bottom:10px'>{desc}</div>
 <div style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px'>
 {kpi_html}
 </div>
-<a href='{page_slug}' target='_self'
+<a href='/{page_slug}' target='_self'
 style='display:inline-block;background:#000;border:1px solid {nav_border};
 padding:5px 12px;color:{nav_border};font-size:10px;font-weight:500;
 text-decoration:none;letter-spacing:0.03em'>{btn_label}</a>

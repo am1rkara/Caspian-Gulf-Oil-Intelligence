@@ -365,3 +365,13 @@ st.markdown(
     "is consistent with Hormuz supply risk premium.</div>",
     unsafe_allow_html=True,
 )
+
+st.markdown("""
+<div style='border-left:3px solid #f59e0b;background:#0a0a0a;padding:12px;margin-top:10px'>
+<span style='color:#a0a0a0;font-size:13px;font-family:"IBM Plex Mono",monospace;line-height:1.6'>
+Contango at current Brent levels is unusual during a supply disruption — typically Hormuz risk
+drives backwardation. Current contango suggests the market prices Hormuz risk as temporary, not
+structural. Watch for curve inversion as a leading signal of escalation repricing.
+</span>
+</div>
+""", unsafe_allow_html=True)

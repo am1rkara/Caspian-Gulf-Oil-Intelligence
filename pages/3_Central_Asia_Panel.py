@@ -39,26 +39,24 @@ GRID = TERMINAL_GRID
 
 # ── CPC disruption event timeline data ────────────────────────────────────────
 _CPC_EVENTS = [
-    {"date": "2022-03-22", "label": "Storm damage\nNovorossiysk",       "severity": "high"},
-    {"date": "2022-04-06", "label": "Russian court\norders suspension",  "severity": "high"},
-    {"date": "2022-07-08", "label": "Second suspension\nordered",        "severity": "high"},
-    {"date": "2023-02-14", "label": "Maintenance\nclosure",             "severity": "medium"},
-    {"date": "2023-08-01", "label": "Throughput\nrestriction",          "severity": "medium"},
-    {"date": "2024-01-15", "label": "Inspection\ndisruption",           "severity": "low"},
-    {"date": "2024-06-01", "label": "Partial\nnormalization",           "severity": "low"},
+    {"date": "2022-03-22", "label": "Storm\nNovorossiysk",    "severity": "high"},
+    {"date": "2022-04-06", "label": "Court\nsuspension",      "severity": "high"},
+    {"date": "2022-07-08", "label": "2nd\nsuspension",        "severity": "high"},
+    {"date": "2023-02-14", "label": "Maintenance\nclosure",   "severity": "medium"},
+    {"date": "2023-08-01", "label": "Throughput\nrestriction","severity": "medium"},
+    {"date": "2024-01-15", "label": "Inspection\ndisruption", "severity": "medium"},
+    {"date": "2024-06-01", "label": "Partial\nnormalization", "severity": "low"},
 ]
-_SEV_COLOR = {"high": "#f87171", "medium": "#f59e0b", "low": "#4ade80"}
+_SEV_COLOR = {"high": "#ff3131", "medium": "#f59e0b", "low": "#39ff14"}
 
-# CPC throughput proxy (MT/yr, approximate EIA/operator data)
+# CPC throughput proxy (MT/yr)
 _CPC_FLOW = [
-    ("2019-01", 54.2), ("2019-07", 56.8),
-    ("2020-01", 52.6), ("2020-07", 53.1), ("2020-10", 54.3),
-    ("2021-01", 57.8), ("2021-07", 63.2), ("2021-10", 65.5),
-    ("2022-01", 66.8), ("2022-03", 50.2), ("2022-05", 48.6),
-    ("2022-07", 53.1), ("2022-09", 55.8), ("2022-12", 56.3),
-    ("2023-01", 57.6), ("2023-06", 59.2), ("2023-09", 57.8), ("2023-12", 60.4),
-    ("2024-03", 62.1), ("2024-06", 63.8), ("2024-09", 64.5), ("2024-12", 65.2),
-    ("2025-01", 65.0), ("2025-04", 65.1),
+    ("2019-01-01", 59.6), ("2019-07-01", 61.2),
+    ("2020-01-01", 55.8), ("2020-07-01", 57.1),
+    ("2021-01-01", 60.4), ("2021-07-01", 62.3),
+    ("2022-01-01", 58.9), ("2022-07-01", 54.2),
+    ("2023-01-01", 56.1), ("2023-07-01", 59.3),
+    ("2024-01-01", 61.8), ("2024-07-01", 62.5),
 ]
 
 # ── Loaders ────────────────────────────────────────────────────────────────────
@@ -308,64 +306,66 @@ flow_df["date"] = pd.to_datetime(flow_df["date"])
 
 fig_cpc_t = go.Figure()
 
-# Base area chart
+# Area chart
 fig_cpc_t.add_trace(go.Scatter(
     x=flow_df["date"], y=flow_df["mt_yr"],
     fill="tozeroy",
-    line=dict(color="#3b82f6", width=1.5),
-    fillcolor="rgba(59,130,246,0.10)",
+    line=dict(color="#39ff14", width=1.5),
+    fillcolor="rgba(57,255,20,0.08)",
     name="Throughput (MT/yr)",
     hovertemplate="%{x|%b %Y}: %{y:.1f} MT/yr<extra></extra>",
 ))
 
-# Capacity line
-fig_cpc_t.add_hline(
-    y=67, line_dash="dash", line_color="#f87171", line_width=1.2,
-)
+# Nameplate capacity line
+fig_cpc_t.add_hline(y=67, line_dash="dash", line_color="#ff3131", line_width=1.2)
 fig_cpc_t.add_annotation(
     x=flow_df["date"].max(), y=67,
-    text="Nameplate 67 MT/yr",
-    showarrow=False, font=dict(size=9, color="#f87171"),
+    text="Nameplate capacity 67 MT/yr",
+    showarrow=False, font=dict(size=9, color="#ff3131"),
     xanchor="right", xshift=-4, yshift=7,
 )
 
-# Event vertical lines only — labels shown in table below the chart
-event_dates = [(pd.to_datetime(e["date"]), e) for e in _CPC_EVENTS]
+# Event lines + staggered labels
+_ev_parsed = [(pd.to_datetime(e["date"]), e) for e in _CPC_EVENTS]
 
-for dt, ev in event_dates:
+# Compute stagger: alternate y-level for events within 60 days of each other
+_ylevels = []
+for i, (dt, _) in enumerate(_ev_parsed):
+    if i == 0:
+        _ylevels.append(1.04)
+    else:
+        gap = (dt - _ev_parsed[i - 1][0]).days
+        _ylevels.append(1.13 if gap <= 60 else 1.04)
+
+for i, (dt, ev) in enumerate(_ev_parsed):
     color = _SEV_COLOR[ev["severity"]]
+    label = ev["label"].replace("\n", " ")
     fig_cpc_t.add_vline(
-        x=str(dt.date()), line_dash="dash", line_color=color,
-        line_width=1.2, opacity=0.85,
+        x=str(dt.date()), line_dash="dash",
+        line_color=color, line_width=1, opacity=0.75,
+    )
+    fig_cpc_t.add_annotation(
+        x=str(dt.date()), y=_ylevels[i],
+        xref="x", yref="paper",
+        text=label,
+        showarrow=False,
+        font=dict(size=9, color=color, family="IBM Plex Mono, monospace"),
+        textangle=0,
+        xanchor="center", yanchor="bottom",
     )
 
 fig_cpc_t.update_layout(
-    **PLOT, height=300, showlegend=False,
-    margin=dict(l=0, r=0, t=10, b=0),
-    yaxis=dict(title="MT/yr", gridcolor=GRID, title_font=dict(size=11),
+    **PLOT, height=280, showlegend=False,
+    margin=dict(l=0, r=0, t=52, b=0),
+    yaxis=dict(title="MT/yr", gridcolor=GRID, title_font=dict(size=10),
                range=[40, 72]),
     xaxis=dict(gridcolor=GRID, tickformat="%Y", dtick="M12"),
 )
 st.plotly_chart(fig_cpc_t, use_container_width=True)
-
-# Event legend table
-_event_rows = "".join(
-    f"<div style='display:flex;gap:10px;align-items:baseline;padding:3px 0;"
-    f"border-bottom:1px solid #1a1e2a'>"
-    f"<span style='color:{_SEV_COLOR[ev['severity']]};font-size:10px;font-weight:600;"
-    f"min-width:68px;flex-shrink:0'>{pd.to_datetime(ev['date']).strftime('%b %Y')}</span>"
-    f"<span style='color:#c8ccd8;font-size:11px'>{ev['label'].replace(chr(10), ' ')}</span>"
-    f"</div>"
-    for ev in _CPC_EVENTS
-)
 st.markdown(
-    f"<div style='background:#111318;border:1px solid #1e2430;border-radius:4px;"
-    f"padding:8px 12px;margin-top:4px'>{_event_rows}"
-    f"<div style='color:#6b7280;font-size:10px;margin-top:6px'>"
-    f"<span style='color:#f87171'>■</span> Suspension/court order &nbsp;"
-    f"<span style='color:#f59e0b'>■</span> Maintenance/restriction &nbsp;"
-    f"<span style='color:#4ade80'>■</span> Normalization</div>"
-    f"</div>",
+    "<div style='color:#555555;font-size:11px;margin-top:2px'>"
+    "Each disruption represents Russian leverage over ~80% of Kazakhstan's oil export capacity. "
+    "Gap below 67 MT/yr = stranded revenue.</div>",
     unsafe_allow_html=True,
 )
 

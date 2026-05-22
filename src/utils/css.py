@@ -364,8 +364,8 @@ details[data-testid="stExpander"] > div strong {
     flex: 1;
     line-height: 1.4;
 }
-.nc-title a { color: #a0a0a0 !important; }
-.nc-title a:hover { color: #e8eaf0 !important; text-decoration: underline; }
+.nc-title a { color: #a0a0a0 !important; text-decoration: none !important; }
+.nc-title a:hover { color: #39ff14 !important; text-decoration: none !important; }
 .nc-time { color: #555555; font-size: 9px; white-space: nowrap; }
 </style>"""
 
