@@ -269,6 +269,27 @@ details[data-testid="stExpander"] > div strong {
     overflow: hidden;
 }
 
+/* Sidebar navigation — larger, terminal-style */
+[data-testid="stSidebarNavLink"] {
+    padding: 7px 14px !important;
+    border-radius: 0 !important;
+}
+[data-testid="stSidebarNavLink"] p,
+[data-testid="stSidebarNavLink"] span {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.02em !important;
+}
+[data-testid="stSidebarNavLink"][aria-current="page"] p,
+[data-testid="stSidebarNavLink"][aria-current="page"] span {
+    color: #39ff14 !important;
+    font-weight: 600 !important;
+}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+    font-size: 11px !important;
+    color: #555555 !important;
+}
+
 /* News rows */
 .nc {
     padding: 9px 0;

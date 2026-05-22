@@ -410,167 +410,188 @@ fig.update_layout(
     showlegend=False,
 )
 
-status_col, globe_col = st.columns([1, 5])
+# Store live data for the fragment (fragment reruns don't re-execute outer scope)
+st.session_state["_gd"] = {
+    "brent": brent, "kzt": kzt, "urals": urals,
+    "kgs_rate": kgs_rate, "cpc": cpc, "fiscal": fiscal, "hormuz": hormuz,
+}
 
-# ── Chokepoint Status Panel ────────────────────────────────────────────────────
-with status_col:
-    h = hormuz
-    sig_rows = "".join(
-        f"<div style='border-left:2px solid {h['color']};padding-left:8px;"
-        f"margin-bottom:7px;color:#a0a0a0;font-size:10px;line-height:1.4'>"
-        f"<span style='color:#555555;font-size:9px'>{_html.escape(a['source'])}</span><br>"
-        f"{_html.escape(a['title'])[:70]}{'…' if len(a['title'])>70 else ''}</div>"
-        for a in h["articles"]
-    ) or "<div style='color:#555555;font-size:10px'>No recent signals in feed</div>"
+@st.fragment
+def _render_globe():
+    d       = st.session_state.get("_gd", {})
+    _brent  = d.get("brent",    0.0)
+    _kzt    = d.get("kzt",      0.0)
+    _urals  = d.get("urals",    0.0)
+    _kgs    = d.get("kgs_rate", "—")
+    _cpc    = d.get("cpc",      {"utilization_pct": 0})
+    _h      = d.get("hormuz",   {"level": "—", "color": "#555555",
+                                 "count": 0, "articles": []})
 
-    st.markdown(f"""
-<div style='background:#0a0a0a;border:1px solid #1a1a1a;
-padding:14px;height:100%;'>
+    status_col, globe_col, info_col = st.columns([1, 3, 2])
+
+    # ── Hormuz Status Panel ────────────────────────────────────────────────────
+    with status_col:
+        sig_rows = "".join(
+            f"<div style='border-left:2px solid {_h['color']};padding-left:8px;"
+            f"margin-bottom:7px;color:#a0a0a0;font-size:10px;line-height:1.4'>"
+            f"<span style='color:#555555;font-size:9px'>{_html.escape(a['source'])}</span><br>"
+            f"{_html.escape(a['title'])[:65]}{'…' if len(a['title'])>65 else ''}</div>"
+            for a in _h["articles"]
+        ) or "<div style='color:#555555;font-size:10px'>No recent signals in feed</div>"
+
+        st.markdown(f"""
+<div style='background:#0a0a0a;border:1px solid #1a1a1a;padding:14px;'>
 
 <div style='color:#555555;font-size:9px;text-transform:uppercase;
-letter-spacing:0.1em;margin-bottom:8px'>Hormuz Status</div>
+letter-spacing:0.1em;margin-bottom:6px'>Hormuz Status</div>
+<div style='color:{_h["color"]};font-size:14px;font-weight:700;
+margin-bottom:2px'>{_h["level"]}</div>
+<div style='color:#555555;font-size:10px;margin-bottom:10px'>
+{_h["count"]} signal{"s" if _h["count"]!=1 else ""} in last 7 days</div>
 
-<div style='color:{h["color"]};font-size:14px;font-weight:700;
-margin-bottom:2px'>{h["level"]}</div>
-<div style='color:#555555;font-size:10px;margin-bottom:14px'>
-{h["count"]} signal{"s" if h["count"]!=1 else ""} in last 7 days</div>
+<div style='background:#050505;border:1px solid #1a1a1a;
+padding:8px 10px;margin-bottom:12px;font-size:9px;line-height:1.8'>
+<div style='color:#555555;text-transform:uppercase;letter-spacing:0.08em;
+margin-bottom:4px'>How signals work</div>
+<div style='color:#444'>Live RSS articles matching Hormuz/Iran/strait
+keywords in past 7 days.</div>
+<div style='margin-top:4px'>
+<span style='color:#39ff14'>NORMAL</span>
+<span style='color:#333333'> 0–2 &nbsp;·&nbsp; </span>
+<span style='color:#f59e0b'>ELEVATED</span>
+<span style='color:#333333'> 3–5 &nbsp;·&nbsp; </span>
+<span style='color:#f87171'>HEIGHTENED</span>
+<span style='color:#333333'> 6+</span></div>
+<div style='color:#444;margin-top:4px'>Level drives the disruption
+fraction used in Hormuz Decomposition.</div>
+</div>
 
-<div style='border-top:1px solid #1a1a1a;padding-top:12px;margin-bottom:12px'>
+<div style='border-top:1px solid #1a1a1a;padding-top:10px;margin-bottom:10px'>
 <div style='color:#555555;font-size:9px;text-transform:uppercase;
-letter-spacing:0.1em;margin-bottom:8px'>Transit Volume</div>
-<div style='color:#e8eaf0;font-size:13px;font-weight:600'>~17 mb/day</div>
-<div style='color:#555555;font-size:10px'>oil &amp; products</div>
-<div style='color:#e8eaf0;font-size:13px;font-weight:600;margin-top:5px'>~4 bcf/day</div>
-<div style='color:#555555;font-size:10px'>LNG in transit</div>
-<div style='color:#555555;font-size:10px;margin-top:6px'>≈ 20% of global oil trade</div>
+letter-spacing:0.1em;margin-bottom:6px'>Transit Volume</div>
+<div style='color:#e8eaf0;font-size:12px;font-weight:600'>~17 mb/day</div>
+<div style='color:#555555;font-size:9px'>oil &amp; products · ≈ 20% global trade</div>
+<div style='color:#e8eaf0;font-size:12px;font-weight:600;margin-top:4px'>~4 bcf/day</div>
+<div style='color:#555555;font-size:9px'>LNG in transit</div>
 </div>
 
-<div style='border-top:1px solid #1a1a1a;padding-top:12px;margin-bottom:12px'>
+<div style='border-top:1px solid #1a1a1a;padding-top:10px;margin-bottom:10px'>
 <div style='color:#555555;font-size:9px;text-transform:uppercase;
-letter-spacing:0.1em;margin-bottom:8px'>Bypass Routes</div>
-
-<div style='margin-bottom:8px'>
-<div style='color:#39ff14;font-size:10px;font-weight:600'>&#10003; Saudi EWP Online</div>
-<div style='color:#555555;font-size:10px;line-height:1.5'>
-Abqaiq → Yanbu<br>5.0 mb/day cap · ~2.5 active</div>
+letter-spacing:0.1em;margin-bottom:6px'>Bypass Routes</div>
+<div style='color:#39ff14;font-size:9px;font-weight:600'>&#10003; Saudi EWP</div>
+<div style='color:#555555;font-size:9px'>Abqaiq → Yanbu · 5 mb/day cap</div>
+<div style='color:#39ff14;font-size:9px;font-weight:600;margin-top:4px'>&#10003; UAE ADCOP</div>
+<div style='color:#555555;font-size:9px'>Habshan → Fujairah · 1.5 mb/day</div>
 </div>
 
-<div>
-<div style='color:#39ff14;font-size:10px;font-weight:600'>&#10003; UAE ADCOP Online</div>
-<div style='color:#555555;font-size:10px;line-height:1.5'>
-Habshan → Fujairah<br>1.5 mb/day cap · active</div>
-</div>
-</div>
-
-<div style='border-top:1px solid #1a1a1a;padding-top:12px'>
+<div style='border-top:1px solid #1a1a1a;padding-top:10px'>
 <div style='color:#555555;font-size:9px;text-transform:uppercase;
-letter-spacing:0.1em;margin-bottom:8px'>Recent Signals</div>
+letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
 {sig_rows}
 </div>
-
 </div>
 """, unsafe_allow_html=True)
 
-with globe_col:
-    event = st.plotly_chart(fig, key="energy_map", on_select="rerun",
-                            use_container_width=True,
-                            config={"scrollZoom": True, "displayModeBar": False})
-    st.markdown(
-        "<div style='color:#555555;font-size:11px;margin-top:4px;padding-left:2px'>"
-        "<span style='color:#39ff14'>■</span> Central Asia &nbsp;|&nbsp; "
-        "<span style='color:#f59e0b'>■</span> Middle East &nbsp;|&nbsp; "
-        "<span style='color:#ff3131'>—</span> CPC pipeline &nbsp;|&nbsp; "
-        "<span style='color:#ff3131'>✕</span> Chokepoints — drag to rotate"
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    # ── Globe ──────────────────────────────────────────────────────────────────
+    with globe_col:
+        event = st.plotly_chart(fig, key="energy_map", on_select="rerun",
+                                use_container_width=True,
+                                config={"scrollZoom": True, "displayModeBar": False})
+        st.markdown(
+            "<div style='color:#555555;font-size:10px;margin-top:4px;padding-left:2px'>"
+            "<span style='color:#39ff14'>■</span> Central Asia &nbsp;|&nbsp; "
+            "<span style='color:#f59e0b'>■</span> Middle East &nbsp;|&nbsp; "
+            "<span style='color:#ff3131'>—</span> CPC &nbsp;|&nbsp; "
+            "<span style='color:#ff3131'>✕</span> Chokepoints — drag to rotate"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        # Parse click
+        if event and event.selection and event.selection.points:
+            pt  = event.selection.points[0]
+            iso = pt.get("location") or (
+                pt.get("customdata") if isinstance(pt.get("customdata"), str) else None)
+            if iso and iso in COUNTRY_META:
+                st.session_state.selected_iso = iso
 
-# Parse clicked country ISO from customdata or location
-if event and event.selection and event.selection.points:
-    pt  = event.selection.points[0]
-    iso = pt.get("location") or (pt.get("customdata") if isinstance(pt.get("customdata"), str) else None)
-    if iso and iso in COUNTRY_META:
-        st.session_state.selected_iso = iso
+    # ── Country Info Panel (right column) ─────────────────────────────────────
+    with info_col:
+        iso = st.session_state.get("selected_iso")
+        if iso and iso in COUNTRY_META:
+            region, accent, title, desc, page_slug, btn_label, btn_cls = COUNTRY_META[iso]
+            border_col = "#39ff14" if region == "ca" else "#f59e0b"
 
-# ── Country Info Panel ─────────────────────────────────────────────────────────
-iso = st.session_state.selected_iso
+            if iso == "KAZ":
+                kpis = [("KZT / USD", f"{_kzt:.0f}"),
+                        ("Urals realized", f"~${_urals:.0f}/bbl"),
+                        ("CPC utilization", f"~{round(_cpc['utilization_pct'])}%")]
+            elif iso == "KGZ":
+                kpis = [("KGS / USD", _kgs),
+                        ("Power mix", "~90% hydro"),
+                        ("Energy trade", "Net importer")]
+            elif iso == "UZB":
+                lbl, val, _ = CA_CURRENCY_FALLBACKS["UZB"]
+                kpis = [(lbl, val), ("Gas reserves", "~1.1 tcm"),
+                        ("Energy balance", "Gas exporter")]
+            elif iso == "TKM":
+                lbl, val, _ = CA_CURRENCY_FALLBACKS["TKM"]
+                kpis = [(lbl, val), ("Gas reserves", "~13.6 tcm"),
+                        ("Main buyer", "China")]
+            elif iso == "TJK":
+                lbl, val, _ = CA_CURRENCY_FALLBACKS["TJK"]
+                kpis = [(lbl, val), ("Power mix", "~98% hydro"),
+                        ("Rogun dam", "In construction")]
+            elif iso in ("SAU","ARE","IRQ","KWT","BHR","OMN"):
+                country_name = ISO_TO_NAME.get(iso, iso)
+                be  = IMF_BREAKEVENS_USD.get(country_name, "—")
+                buf = round(_brent - be, 1) if isinstance(be, (int, float)) else "—"
+                buf_str = f"+{buf}" if isinstance(buf, float) and buf >= 0 else str(buf)
+                kpis = [("Brent spot", f"${_brent:.1f}"),
+                        ("Fiscal breakeven", f"${be}/bbl"),
+                        ("Brent vs breakeven", f"{buf_str}/bbl")]
+            elif iso == "IRN":
+                kpis = [("Brent spot", f"${_brent:.1f}"),
+                        ("Hormuz transit", "~20% global oil"),
+                        ("Status", "Sanctioned")]
+            elif iso == "QAT":
+                kpis = [("LNG capacity", "77 MTPA"),
+                        ("North Field exp.", "→126 MTPA 2030"),
+                        ("Brent spot", f"${_brent:.1f}")]
+            else:
+                kpis = [("Brent spot", f"${_brent:.1f}")]
 
-if iso and iso in COUNTRY_META:
-    region, accent, title, desc, page_slug, btn_label, btn_cls = COUNTRY_META[iso]
+            kpi_html = "".join(
+                f"<div class='kpi-item' style='min-width:0'>"
+                f"<div class='kpi-l'>{lbl}</div>"
+                f"<div class='kpi-v'>{val}</div></div>"
+                for lbl, val in kpis
+            )
+            nav_border = "#39ff14" if not btn_cls else "#f59e0b"
+            st.markdown(f"""
+<div style='background:#0a0a0a;border:1px solid #1a1a1a;
+border-left:3px solid {border_col};padding:16px 18px;margin-top:2px'>
+<div style='color:#e8eaf0;font-weight:700;font-size:16px;
+letter-spacing:0.01em;margin-bottom:6px'>{title}</div>
+<div style='color:#a0a0a0;font-size:11px;line-height:1.7;
+margin-bottom:14px'>{desc}</div>
+<div style='display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px'>
+{kpi_html}
+</div>
+<a href='{page_slug}' target='_self'
+style='display:inline-block;background:#000;border:1px solid {nav_border};
+padding:6px 14px;color:{nav_border};font-size:11px;font-weight:500;
+text-decoration:none;letter-spacing:0.03em'>{btn_label}</a>
+</div>
+""", unsafe_allow_html=True)
+        else:
+            st.markdown(
+                "<div style='color:#2a2a2a;font-size:11px;margin-top:80px;"
+                "text-align:center;line-height:2;font-family:IBM Plex Mono,monospace'>"
+                "← Click a country<br>on the globe</div>",
+                unsafe_allow_html=True,
+            )
 
-    # Build KPIs based on country
-    if iso == "KAZ":
-        kpis = [
-            ("KZT / USD", f"{kzt:.0f}"),
-            ("Urals realized", f"~${urals:.0f}/bbl"),
-            ("CPC utilization", f"~{round(cpc['utilization_pct'])}%"),
-        ]
-    elif iso == "KGZ":
-        kpis = [
-            ("KGS / USD", kgs_rate),
-            ("Power mix", "~90% hydro"),
-            ("Energy trade", "Net importer"),
-        ]
-    elif iso == "UZB":
-        lbl, val, note = CA_CURRENCY_FALLBACKS["UZB"]
-        kpis = [
-            (lbl, val),
-            ("Gas reserves", "~1.1 tcm"),
-            ("Energy balance", "Gas exporter"),
-        ]
-    elif iso == "TKM":
-        lbl, val, note = CA_CURRENCY_FALLBACKS["TKM"]
-        kpis = [
-            (lbl, val),
-            ("Gas reserves", "~13.6 tcm"),
-            ("Main buyer", "China"),
-        ]
-    elif iso == "TJK":
-        lbl, val, note = CA_CURRENCY_FALLBACKS["TJK"]
-        kpis = [
-            (lbl, val),
-            ("Power mix", "~98% hydro"),
-            ("Rogun dam", "In construction"),
-        ]
-    elif iso in ("SAU","ARE","IRQ","KWT","BHR","OMN"):
-        country_name = ISO_TO_NAME.get(iso, iso)
-        be = IMF_BREAKEVENS_USD.get(country_name, "—")
-        buf = round(brent - be, 1) if isinstance(be, (int, float)) else "—"
-        buf_str = f"+{buf}" if isinstance(buf, float) and buf >= 0 else str(buf)
-        kpis = [
-            ("Brent spot",        f"${brent:.2f}"),
-            ("Fiscal breakeven",  f"${be}/bbl (IMF)"),
-            ("Brent vs breakeven", f"{buf_str}/bbl"),
-        ]
-    elif iso == "IRN":
-        kpis = [
-            ("Brent spot",       f"${brent:.2f}"),
-            ("Hormuz transit",   "~20% global oil"),
-            ("Status",           "Sanctioned"),
-        ]
-    elif iso == "QAT":
-        kpis = [
-            ("LNG capacity",     "77 MTPA"),
-            ("North Field exp.", "→ 126 MTPA by 2030"),
-            ("Brent spot",       f"${brent:.2f}"),
-        ]
-    else:
-        kpis = [("Brent spot", f"${brent:.2f}")]
-
-    kpi_html = "".join(
-        f"<div class='kpi-item'><div class='kpi-l'>{lbl}</div><div class='kpi-v'>{val}</div></div>"
-        for lbl, val in kpis
-    )
-    st.markdown(f"""
-    <div class='info-panel {accent}'>
-        <div style='color:#e8eaf0;font-weight:600;font-size:14px'>{title}</div>
-        <div style='color:#a0a0a0;font-size:12px;margin-top:6px;line-height:1.7'>{desc}</div>
-        <div class='kpi-row'>{kpi_html}</div>
-        <a class='nav-btn {btn_cls}' href='{page_slug}' target='_self'>{btn_label}</a>
-    </div>
-    """, unsafe_allow_html=True)
-else:
-    pass  # no instruction text — map is self-evident
+_render_globe()
 
 # ── Latest Headlines ───────────────────────────────────────────────────────────
 st.markdown("<div class='sec padded' style='margin-top:20px'>Latest Intelligence</div>",
