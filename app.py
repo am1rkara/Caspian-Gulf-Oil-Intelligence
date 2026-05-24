@@ -713,13 +713,11 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
             "<span style='color:#39ff14'>■</span> Central Asia &nbsp;|&nbsp; "
             "<span style='color:#f59e0b'>■</span> Gulf/ME &nbsp;|&nbsp; "
             "<span style='color:#ff3131'>■</span> Russia &nbsp;|&nbsp; "
-            "<span style='color:#00b4d8'>■</span> AZE/TUR &nbsp;|&nbsp; "
-            "<span style='color:#ff3131'>—</span> CPC &nbsp;|&nbsp; "
-            "<span style='color:#39ff14'>—</span> BTC &nbsp;|&nbsp; "
-            "<span style='color:#00b4d8'>—</span> KCTS &nbsp;|&nbsp; "
+            "<span style='color:#00b4d8'>■</span> AZE / TUR &nbsp;|&nbsp; "
+            "<span style='color:#a0a0a0'>■</span> China &nbsp;|&nbsp; "
             "<span style='color:#39ff14'>●</span> Fields &nbsp;|&nbsp; "
-            "<span style='color:#ff3131'>✕</span> Chokepoints "
-            "<span style='color:#444'>(click for info)</span>"
+            "<span style='color:#ff3131'>✕</span> Chokepoints"
+            "<span style='color:#3a3a3a'> &nbsp;·&nbsp; pipelines → infrastructure panel</span>"
             "</div>",
             unsafe_allow_html=True,
         )
@@ -786,16 +784,6 @@ letter-spacing:0.08em;margin-bottom:5px'>Pipelines</div>
 </div>
 </div>
 
-
-<div style='border-top:1px solid #111;padding-top:8px;margin-top:4px'>
-<div style='color:#555555;font-size:8px;line-height:1.5'>
-<span style='color:#ff3131'>✕</span> chokepoints &nbsp;·&nbsp;
-<span style='color:#39ff14'>●</span> fields &nbsp;·&nbsp;
-<span style='color:#39ff14'>■</span> CA &nbsp;·&nbsp;
-<span style='color:#f59e0b'>■</span> Gulf<br>
-<span style='color:#444'>click any marker for info</span>
-</div>
-</div>
 
 </div>
 """, unsafe_allow_html=True)
