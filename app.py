@@ -329,6 +329,30 @@ fig.add_trace(go.Scattergeo(
     showlegend=False,
 ))
 
+# BTC pipeline — Baku → Tbilisi → Ceyhan (#4ade80)
+fig.add_trace(go.Scattergeo(
+    lat=[40.4, 41.7, 41.2, 38.5, 36.9],
+    lon=[49.9, 44.8, 42.0, 38.0, 35.9],
+    mode="lines",
+    line=dict(color="#4ade80", width=1.5),
+    name="BTC",
+    hovertext="BTC Pipeline — Baku → Tbilisi → Ceyhan<br>1,768 km · ~1.2 mb/day · oil",
+    hoverinfo="text",
+    showlegend=False,
+))
+
+# TANAP — Trans-Anatolian Natural Gas Pipeline (#a78bfa)
+fig.add_trace(go.Scattergeo(
+    lat=[41.5, 39.9, 39.8, 39.9, 41.2],
+    lon=[43.5, 41.3, 32.0, 28.0, 26.2],
+    mode="lines",
+    line=dict(color="#a78bfa", width=1.5),
+    name="TANAP",
+    hovertext="TANAP — Trans-Anatolian Gas Pipeline<br>Azerbaijan → Turkey / Europe · 1,850 km · gas",
+    hoverinfo="text",
+    showlegend=False,
+))
+
 # Chokepoints — Hormuz, Bosphorus, Novorossiysk
 fig.add_trace(go.Scattergeo(
     lat=[26.5, 41.0, 44.7],
@@ -414,22 +438,22 @@ letter-spacing:0.04em;margin-bottom:2px'>{_h["level"]}</div>
 <div style='border-top:1px solid #1a1a1a;padding-top:10px;margin-bottom:10px'>
 <div style='color:#555555;font-size:9px;text-transform:uppercase;
 letter-spacing:0.1em;margin-bottom:6px'>Signal derivation</div>
-<div style='color:#3a3a3a;font-size:9px;line-height:1.7'>
+<div style='color:#666666;font-size:9px;line-height:1.7'>
 Each hourly RSS article is scanned for 12 keywords in title + body:<br>
-<span style='color:#444444'>hormuz · iran · irgc · tanker seized · strait ·
+<span style='color:#666666'>hormuz · iran · irgc · tanker seized · strait ·
 blockade · escalat · gulf tension · oil attack · persian gulf ·
 naval · drone attack</span><br><br>
 Articles &gt;7 days old are excluded. Each matching article = 1 signal.
 </div>
 <div style='margin-top:8px;font-size:9px;line-height:2'>
 <div><span style='color:#39ff14;font-weight:600'>NORMAL</span>
-<span style='color:#2a2a2a'>&nbsp;0–2 → 0% strait disrupted</span></div>
+<span style='color:#555555'>&nbsp;0–2 → 0% strait disrupted</span></div>
 <div><span style='color:#f59e0b;font-weight:600'>ELEVATED</span>
-<span style='color:#2a2a2a'>&nbsp;3–5 → 15% (2.6 mb/day)</span></div>
+<span style='color:#555555'>&nbsp;3–5 → 15% (2.6 mb/day)</span></div>
 <div><span style='color:#f87171;font-weight:600'>HEIGHTENED</span>
-<span style='color:#2a2a2a'>&nbsp;6+ → 35% (6.0 mb/day)</span></div>
+<span style='color:#555555'>&nbsp;6+ → 35% (6.0 mb/day)</span></div>
 </div>
-<div style='color:#2a2a2a;font-size:9px;margin-top:6px'>
+<div style='color:#555555;font-size:9px;margin-top:6px'>
 Fraction feeds the Hormuz Decomposition price model.</div>
 </div>
 
@@ -469,7 +493,9 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
             "<span style='color:#39ff14'>■</span> Central Asia &nbsp;|&nbsp; "
             "<span style='color:#f59e0b'>■</span> Middle East &nbsp;|&nbsp; "
             "<span style='color:#ff3131'>—</span> CPC &nbsp;|&nbsp; "
-            "<span style='color:#ff3131'>✕</span> Chokepoints — drag to rotate"
+            "<span style='color:#4ade80'>—</span> BTC &nbsp;|&nbsp; "
+            "<span style='color:#a78bfa'>—</span> TANAP &nbsp;|&nbsp; "
+            "<span style='color:#ff3131'>✕</span> Chokepoints"
             "</div>",
             unsafe_allow_html=True,
         )
@@ -481,8 +507,62 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
             if iso and iso in COUNTRY_META:
                 st.session_state.selected_iso = iso
 
-    # ── Country Info Panel (right column) ─────────────────────────────────────
+    # ── Right column: infrastructure legend (top) + country info (bottom) ───────
     with info_col:
+        HALF_H = (GLOBE_H - 8) // 2  # ~266px each, 8px gap between panels
+
+        # Pipeline / infrastructure legend (top half)
+        st.markdown(f"""
+<div style='background:#0a0a0a;border:1px solid #1a1a1a;padding:12px 14px;
+height:{HALF_H}px;overflow-y:auto;box-sizing:border-box;margin-bottom:8px'>
+
+<div style='color:#555555;font-size:9px;text-transform:uppercase;
+letter-spacing:0.1em;margin-bottom:8px'>Infrastructure</div>
+
+<div style='margin-bottom:9px'>
+<div style='color:#555555;font-size:8px;text-transform:uppercase;
+letter-spacing:0.08em;margin-bottom:5px'>Pipelines</div>
+
+<div style='display:flex;align-items:flex-start;gap:8px;margin-bottom:6px'>
+<div style='width:18px;height:2px;background:#ff3131;flex-shrink:0;margin-top:5px'></div>
+<div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>CPC</div>
+<div style='color:#555555;font-size:8px;line-height:1.3'>Tengiz → Novorossiysk<br>1,511 km · ~1.3 mb/day · oil</div></div>
+</div>
+
+<div style='display:flex;align-items:flex-start;gap:8px;margin-bottom:6px'>
+<div style='width:18px;height:2px;background:#4ade80;flex-shrink:0;margin-top:5px'></div>
+<div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>BTC</div>
+<div style='color:#555555;font-size:8px;line-height:1.3'>Baku → Tbilisi → Ceyhan<br>1,768 km · ~1.2 mb/day · oil</div></div>
+</div>
+
+<div style='display:flex;align-items:flex-start;gap:8px'>
+<div style='width:18px;height:2px;background:#a78bfa;flex-shrink:0;margin-top:5px'></div>
+<div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>TANAP</div>
+<div style='color:#555555;font-size:8px;line-height:1.3'>Azerbaijan → Turkey / EU<br>1,850 km · ~16 bcm/yr · gas</div></div>
+</div>
+</div>
+
+<div style='border-top:1px solid #111;padding-top:8px'>
+<div style='color:#555555;font-size:8px;text-transform:uppercase;
+letter-spacing:0.08em;margin-bottom:5px'>Chokepoints</div>
+<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px'>
+<span style='color:#ff3131;font-size:10px;flex-shrink:0;line-height:1'>✕</span>
+<div style='color:#666666;font-size:8px;line-height:1.3'>Hormuz — ~20% global oil · 17 mb/day</div>
+</div>
+<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px'>
+<span style='color:#ff3131;font-size:10px;flex-shrink:0;line-height:1'>✕</span>
+<div style='color:#666666;font-size:8px;line-height:1.3'>Bosphorus — Black Sea gateway · ~3 mb/day</div>
+</div>
+<div style='display:flex;align-items:center;gap:7px'>
+<span style='color:#ff3131;font-size:10px;flex-shrink:0;line-height:1'>✕</span>
+<div style='color:#666666;font-size:8px;line-height:1.3'>Novorossiysk — CPC terminus · ~1.3 mb/day</div>
+</div>
+</div>
+
+</div>
+""", unsafe_allow_html=True)
+
+        # Country info panel (bottom half)
         iso = st.session_state.get("selected_iso")
         if iso and iso in COUNTRY_META:
             region, accent, title, desc, page_slug, btn_label, btn_cls = COUNTRY_META[iso]
@@ -539,11 +619,11 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
             nav_border = "#39ff14" if not btn_cls else "#f59e0b"
             st.markdown(f"""
 <div style='background:#0a0a0a;border:1px solid #1a1a1a;
-border-left:3px solid {border_col};padding:12px 14px;margin-top:2px;
-height:{GLOBE_H}px;overflow-y:auto;box-sizing:border-box'>
+border-left:3px solid {border_col};padding:12px 14px;
+height:{HALF_H}px;overflow-y:auto;box-sizing:border-box'>
 <div style='color:#e8eaf0;font-weight:700;font-size:13px;
 letter-spacing:0.01em;margin-bottom:5px'>{title}</div>
-<div style='color:#666666;font-size:10px;line-height:1.6;
+<div style='color:#777777;font-size:10px;line-height:1.6;
 margin-bottom:10px'>{desc}</div>
 <div style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px'>
 {kpi_html}
@@ -556,9 +636,10 @@ text-decoration:none;letter-spacing:0.03em'>{btn_label}</a>
 """, unsafe_allow_html=True)
         else:
             st.markdown(
-                f"<div style='color:#252525;font-size:10px;margin-top:{GLOBE_H//2 - 30}px;"
-                "text-align:center;line-height:2;font-family:IBM Plex Mono,monospace;'>"
-                "← click a country</div>",
+                f"<div style='color:#3a3a3a;font-size:10px;"
+                f"height:{HALF_H}px;display:flex;align-items:center;"
+                f"justify-content:center;border:1px solid #111;"
+                f"font-family:IBM Plex Mono,monospace;'>← click a country</div>",
                 unsafe_allow_html=True,
             )
 

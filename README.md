@@ -1,15 +1,3 @@
----
-title: Caspian-Gulf Oil Intelligence
-emoji: 🛢
-colorFrom: blue
-colorTo: gray
-sdk: streamlit
-sdk_version: 1.57.0
-app_file: app.py
-pinned: false
-license: mit
----
-
 # Caspian-Gulf Oil Intelligence
 
 Tracks Gulf supply disruption risk and how it flows into Kazakh energy revenues.
