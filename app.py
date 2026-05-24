@@ -419,7 +419,7 @@ fig = go.Figure()
 fig.add_trace(go.Choropleth(
     locations=["CHN"], z=[1],
     colorscale=[[0,"#a0a0a0"],[1,"#a0a0a0"]],
-    showscale=False, marker_opacity=0.2,
+    showscale=False, marker_opacity=0.12,
     marker_line_color="#111", marker_line_width=0.3,
     hovertext=["<b>China</b><br>KCTS destination · ~200 kbd KZ imports"],
     customdata=["CHN"],
@@ -428,7 +428,7 @@ fig.add_trace(go.Choropleth(
 fig.add_trace(go.Choropleth(
     locations=["RUS"], z=[1],
     colorscale=[[0,"#ff3131"],[1,"#ff3131"]],
-    showscale=False, marker_opacity=0.25,
+    showscale=False, marker_opacity=0.15,
     marker_line_color="#111", marker_line_width=0.3,
     hovertext=["<b>Russia</b><br>Controls CPC pipeline · transit risk"],
     customdata=["RUS"],
@@ -437,7 +437,7 @@ fig.add_trace(go.Choropleth(
 fig.add_trace(go.Choropleth(
     locations=["TUR"], z=[1],
     colorscale=[[0,"#00b4d8"],[1,"#00b4d8"]],
-    showscale=False, marker_opacity=0.3,
+    showscale=False, marker_opacity=0.18,
     marker_line_color="#111", marker_line_width=0.3,
     hovertext=["<b>Turkey</b><br>BTC terminus · Bosphorus chokepoint"],
     customdata=["TUR"],
@@ -446,7 +446,7 @@ fig.add_trace(go.Choropleth(
 fig.add_trace(go.Choropleth(
     locations=["AZE"], z=[1],
     colorscale=[[0,"#00b4d8"],[1,"#00b4d8"]],
-    showscale=False, marker_opacity=0.4,
+    showscale=False, marker_opacity=0.22,
     marker_line_color="#111", marker_line_width=0.3,
     hovertext=["<b>Azerbaijan</b><br>BTC corridor · Caspian transit hub"],
     customdata=["AZE"],
@@ -455,7 +455,7 @@ fig.add_trace(go.Choropleth(
 fig.add_trace(go.Choropleth(
     locations=me_isos, z=[1]*len(me_isos),
     colorscale=[[0,"#f59e0b"],[1,"#f59e0b"]],
-    showscale=False, marker_opacity=0.5,
+    showscale=False, marker_opacity=0.28,
     marker_line_color="#1a1a1a", marker_line_width=0.5,
     customdata=me_isos,
     text=me_hover, hoverinfo="text", showlegend=False,
@@ -463,7 +463,7 @@ fig.add_trace(go.Choropleth(
 fig.add_trace(go.Choropleth(
     locations=ca_isos, z=[1]*len(ca_isos),
     colorscale=[[0,"#39ff14"],[1,"#39ff14"]],
-    showscale=False, marker_opacity=0.5,
+    showscale=False, marker_opacity=0.28,
     marker_line_color="#1a1a1a", marker_line_width=0.5,
     customdata=ca_isos,
     text=ca_hover, hoverinfo="text", showlegend=False,
@@ -554,7 +554,7 @@ _cpkt_ids = ["CP_HORMUZ", "CP_BOSPHORUS", "CP_SUEZ", "CP_BABELMANDEB",
 fig.add_trace(go.Scattergeo(
     lat=_cpkt_lat, lon=_cpkt_lon,
     mode="markers+text",
-    marker=dict(symbol="x", size=7, color="#ff3131",
+    marker=dict(symbol="x", size=5, color="#ff3131",
                 line=dict(color="#ff3131", width=1)),
     text=_cpkt_lbl,
     textposition="top right",
