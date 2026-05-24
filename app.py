@@ -112,6 +112,11 @@ COUNTRY_META = {
             "in the region (~$95/bbl). Bahrain relies on Saudi pipeline transfers "
             "and downstream refining via Bapco to supplement declining reserves.",
             "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
+    "YEM": ("me", "me", "Yemen",
+            "Houthi forces have attacked Red Sea shipping since late 2023, disrupting "
+            "Bab-el-Mandeb — a strait carrying ~8% of global oil and LNG to Asia-Europe. "
+            "Tanker rerouting around Africa adds ~10 days and ~$1M per voyage.",
+            "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
 }
 
 # Static fallback currency rates (update rarely)
@@ -126,7 +131,7 @@ ME_BREAKEVEN = {k: IMF_BREAKEVENS_USD.get(k, "—") for k in
                 ["Saudi Arabia","UAE","Iraq","Kuwait","Iran","Oman","Qatar","Bahrain"]}
 ISO_TO_NAME = {
     "SAU": "Saudi Arabia", "ARE": "UAE", "IRQ": "Iraq", "KWT": "Kuwait",
-    "IRN": "Iran", "OMN": "Oman", "QAT": "Qatar", "BHR": "Bahrain",
+    "IRN": "Iran", "OMN": "Oman", "QAT": "Qatar", "BHR": "Bahrain", "YEM": "Yemen",
 }
 
 # ── Data loaders ───────────────────────────────────────────────────────────────
@@ -288,24 +293,55 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Globe — full bleed ─────────────────────────────────────────────────────────
-ca_isos  = ["KAZ","UZB","TKM","KGZ","TJK"]
-me_isos  = ["SAU","ARE","IRQ","KWT","IRN","OMN","QAT","BHR"]
+# ── Globe ──────────────────────────────────────────────────────────────────────
+ca_isos = ["KAZ","UZB","TKM","KGZ","TJK"]
+me_isos = ["SAU","ARE","IRQ","KWT","IRN","OMN","QAT","BHR","YEM"]
 
-ca_hover = [f"<b>{COUNTRY_META[i][2]}</b><br><span style='color:#555555;font-size:11px'>Central Asia — {COUNTRY_META[i][3][:60]}…</span>"
-            for i in ca_isos]
-me_hover = [f"<b>{COUNTRY_META[i][2]}</b><br><span style='color:#555555;font-size:11px'>Middle East — {COUNTRY_META[i][3][:60]}…</span>"
-            for i in me_isos]
+ca_hover = [
+    f"<b>{COUNTRY_META[i][2]}</b><br>"
+    f"<span style='color:#888;font-size:11px'>Central Asia — {COUNTRY_META[i][3][:60]}…</span>"
+    for i in ca_isos
+]
+me_hover = [
+    f"<b>{COUNTRY_META[i][2]}</b><br>"
+    f"<span style='color:#888;font-size:11px'>Middle East — {COUNTRY_META[i][3][:60]}…</span>"
+    for i in me_isos
+]
 
 fig = go.Figure()
+
+# ── Choropleth layers (back → front) ──────────────────────────────────────────
 fig.add_trace(go.Choropleth(
-    locations=ca_isos, z=[1]*len(ca_isos),
-    colorscale=[[0,"#39ff14"],[1,"#39ff14"]],
-    showscale=False, marker_opacity=0.5,
-    marker_line_color="#1a1a1a", marker_line_width=0.5,
-    customdata=ca_isos,
-    text=ca_hover, hoverinfo="text",
-    name="Central Asia",
+    locations=["CHN"], z=[1],
+    colorscale=[[0,"#a0a0a0"],[1,"#a0a0a0"]],
+    showscale=False, marker_opacity=0.2,
+    marker_line_color="#111", marker_line_width=0.3,
+    hovertext=["<b>China</b><br>KCTS destination · ~200 kbd KZ imports"],
+    hoverinfo="text", showlegend=False,
+))
+fig.add_trace(go.Choropleth(
+    locations=["RUS"], z=[1],
+    colorscale=[[0,"#ff3131"],[1,"#ff3131"]],
+    showscale=False, marker_opacity=0.25,
+    marker_line_color="#111", marker_line_width=0.3,
+    hovertext=["<b>Russia</b><br>Controls CPC pipeline · transit risk"],
+    hoverinfo="text", showlegend=False,
+))
+fig.add_trace(go.Choropleth(
+    locations=["TUR"], z=[1],
+    colorscale=[[0,"#00b4d8"],[1,"#00b4d8"]],
+    showscale=False, marker_opacity=0.3,
+    marker_line_color="#111", marker_line_width=0.3,
+    hovertext=["<b>Turkey</b><br>BTC terminus · Bosphorus chokepoint"],
+    hoverinfo="text", showlegend=False,
+))
+fig.add_trace(go.Choropleth(
+    locations=["AZE"], z=[1],
+    colorscale=[[0,"#00b4d8"],[1,"#00b4d8"]],
+    showscale=False, marker_opacity=0.4,
+    marker_line_color="#111", marker_line_width=0.3,
+    hovertext=["<b>Azerbaijan</b><br>BTC corridor · Caspian transit hub"],
+    hoverinfo="text", showlegend=False,
 ))
 fig.add_trace(go.Choropleth(
     locations=me_isos, z=[1]*len(me_isos),
@@ -313,86 +349,158 @@ fig.add_trace(go.Choropleth(
     showscale=False, marker_opacity=0.5,
     marker_line_color="#1a1a1a", marker_line_width=0.5,
     customdata=me_isos,
-    text=me_hover, hoverinfo="text",
-    name="Middle East",
+    text=me_hover, hoverinfo="text", showlegend=False,
+))
+fig.add_trace(go.Choropleth(
+    locations=ca_isos, z=[1]*len(ca_isos),
+    colorscale=[[0,"#39ff14"],[1,"#39ff14"]],
+    showscale=False, marker_opacity=0.5,
+    marker_line_color="#1a1a1a", marker_line_width=0.5,
+    customdata=ca_isos,
+    text=ca_hover, hoverinfo="text", showlegend=False,
 ))
 
-# CPC pipeline — Tengiz → Novorossiysk (#ff3131)
+# ── Pipeline traces ────────────────────────────────────────────────────────────
+# CPC — Tengiz → Novorossiysk
 fig.add_trace(go.Scattergeo(
-    lat=[53.1, 47.1, 46.5, 44.8, 44.7],
-    lon=[53.7, 51.9, 49.0, 43.0, 37.8],
-    mode="lines",
-    line=dict(color="#ff3131", width=2),
-    name="CPC",
-    hovertext="CPC Pipeline — Tengiz → Novorossiysk<br>1,511 km · ~1.3 mb/day · 80% of KZ exports",
-    hoverinfo="text",
-    showlegend=False,
+    lat=[45.4, 47.1, 46.5, 44.7],
+    lon=[53.1, 51.9, 48.2, 37.8],
+    mode="lines", line=dict(color="#ff3131", width=2),
+    name="CPC (Russia-controlled)",
+    hovertext="CPC — ~1.4 mb/day · Russian-controlled",
+    hoverinfo="text", showlegend=True,
+))
+# BTC tanker segment — Aktau → Baku across Caspian
+fig.add_trace(go.Scattergeo(
+    lat=[43.6, 40.4],
+    lon=[51.2, 49.9],
+    mode="lines", line=dict(color="#39ff14", width=2, dash="dot"),
+    name="BTC tanker (Aktau→Baku)",
+    hovertext="BTC tanker route — Aktau → Baku across Caspian",
+    hoverinfo="text", showlegend=False,
+))
+# BTC pipeline — Baku → Tbilisi → Ceyhan
+fig.add_trace(go.Scattergeo(
+    lat=[40.4, 41.7, 36.8],
+    lon=[49.9, 44.8, 35.9],
+    mode="lines", line=dict(color="#39ff14", width=2),
+    name="BTC (Baku-Tbilisi-Ceyhan)",
+    hovertext="BTC — ~200 kbd KZ volume · Hormuz-independent",
+    hoverinfo="text", showlegend=True,
+))
+# KCTS — Kazakhstan → China
+fig.add_trace(go.Scattergeo(
+    lat=[47.1, 44.8, 42.3, 45.2, 43.8],
+    lon=[51.9, 65.5, 69.6, 82.6, 87.6],
+    mode="lines", line=dict(color="#00b4d8", width=2),
+    name="KCTS (Kazakhstan-China)",
+    hovertext="KCTS — ~200 kbd · China route",
+    hoverinfo="text", showlegend=True,
+))
+# Atyrau-Samara — Russia backup
+fig.add_trace(go.Scattergeo(
+    lat=[47.1, 51.8, 53.2],
+    lon=[51.9, 55.1, 50.2],
+    mode="lines", line=dict(color="#ff3131", width=2, dash="dot"),
+    opacity=0.5,
+    name="Atyrau-Samara (Russia)",
+    hovertext="Atyrau-Samara — Russia backup route",
+    hoverinfo="text", showlegend=True,
+))
+# Saudi EWP — Hormuz bypass
+fig.add_trace(go.Scattergeo(
+    lat=[25.9, 24.7, 24.1],
+    lon=[49.7, 46.7, 38.1],
+    mode="lines", line=dict(color="#f59e0b", width=2, dash="dash"),
+    name="Saudi EWP (Hormuz bypass)",
+    hovertext="Saudi EWP — 5 mb/day bypass capacity",
+    hoverinfo="text", showlegend=True,
+))
+# UAE ADCOP — Hormuz bypass
+fig.add_trace(go.Scattergeo(
+    lat=[23.8, 25.1],
+    lon=[53.7, 56.3],
+    mode="lines", line=dict(color="#f59e0b", width=2, dash="dash"),
+    name="UAE ADCOP (Hormuz bypass)",
+    hovertext="UAE ADCOP — 1.5 mb/day bypass capacity",
+    hoverinfo="text", showlegend=True,
 ))
 
-# BTC pipeline — Baku → Tbilisi → Ceyhan (#4ade80)
+# ── Chokepoints ────────────────────────────────────────────────────────────────
+_cpkt_lat = [26.5, 41.0, 30.5, 12.6, 44.7, 36.8, 25.1]
+_cpkt_lon = [56.5, 29.0, 32.5, 43.3, 37.8, 35.9, 56.3]
+_cpkt_lbl = ["HORMUZ", "BOSPHORUS", "SUEZ", "BAB-EL-MANDEB",
+             "NOVOROSSIYSK", "CEYHAN", "FUJAIRAH"]
+_cpkt_tip = [
+    "Strait of Hormuz — ~17 mb/day · 20% global oil trade",
+    "Bosphorus — Urals tanker route · ~3 mb/day",
+    "Suez Canal — Asia rerouting",
+    "Bab-el-Mandeb — Houthi risk · Red Sea route",
+    "Novorossiysk — CPC terminus · ~1.3 mb/day",
+    "Ceyhan — BTC terminus",
+    "Fujairah — UAE bypass terminus · 1.5 mb/day",
+]
 fig.add_trace(go.Scattergeo(
-    lat=[40.4, 41.7, 41.2, 38.5, 36.9],
-    lon=[49.9, 44.8, 42.0, 38.0, 35.9],
-    mode="lines",
-    line=dict(color="#4ade80", width=1.5),
-    name="BTC",
-    hovertext="BTC Pipeline — Baku → Tbilisi → Ceyhan<br>1,768 km · ~1.2 mb/day · oil",
-    hoverinfo="text",
-    showlegend=False,
-))
-
-# TANAP — Trans-Anatolian Natural Gas Pipeline (#a78bfa)
-fig.add_trace(go.Scattergeo(
-    lat=[41.5, 39.9, 39.8, 39.9, 41.2],
-    lon=[43.5, 41.3, 32.0, 28.0, 26.2],
-    mode="lines",
-    line=dict(color="#a78bfa", width=1.5),
-    name="TANAP",
-    hovertext="TANAP — Trans-Anatolian Gas Pipeline<br>Azerbaijan → Turkey / Europe · 1,850 km · gas",
-    hoverinfo="text",
-    showlegend=False,
-))
-
-# Chokepoints — Hormuz, Bosphorus, Novorossiysk
-fig.add_trace(go.Scattergeo(
-    lat=[26.5, 41.0, 44.7],
-    lon=[56.5, 29.0, 37.8],
+    lat=_cpkt_lat, lon=_cpkt_lon,
     mode="markers+text",
-    marker=dict(symbol="x-thin-open", size=10, color="#ff3131",
+    marker=dict(symbol="x", size=10, color="#ff3131",
                 line=dict(color="#ff3131", width=2)),
-    text=["Hormuz", "Bosphorus", "Novorossiysk"],
-    textposition=["top center", "top center", "top center"],
-    textfont=dict(size=9, color="#ff3131"),
-    hovertext=[
-        "Strait of Hormuz — ~20% of global oil trade · ~17 mb/day",
-        "Bosphorus Strait — Black Sea gateway · ~3 mb/day",
-        "Novorossiysk — CPC terminus · ~1.3 mb/day KZ crude",
-    ],
-    hoverinfo="text",
-    showlegend=False,
-    name="Chokepoints",
+    text=_cpkt_lbl,
+    textposition="top right",
+    textfont=dict(size=8, color="#ff3131", family="IBM Plex Mono, monospace"),
+    hovertext=_cpkt_tip, hoverinfo="text",
+    showlegend=False, name="Chokepoints",
 ))
 
-GLOBE_H = 540
+# ── Production fields ──────────────────────────────────────────────────────────
+_fld_lat = [45.4, 45.4, 50.4, 24.8, 30.4, 24.8]
+_fld_lon = [53.1, 51.2, 53.6, 49.2, 47.4, 53.4]
+_fld_tip = [
+    "Tengiz — Chevron · ~700 kbd",
+    "Kashagan — NCOC · ~400 kbd",
+    "Karachaganak — KMG/Shell · ~240 kbd",
+    "Ghawar — Saudi Aramco · largest field globally",
+    "Rumaila — BP/Iraq · ~1.4 mb/day",
+    "Zakum — ADNOC · ~800 kbd",
+]
+fig.add_trace(go.Scattergeo(
+    lat=_fld_lat, lon=_fld_lon,
+    mode="markers",
+    marker=dict(symbol="circle", size=8, color="#39ff14", opacity=0.8,
+                line=dict(color="#39ff14", width=1)),
+    hovertext=_fld_tip, hoverinfo="text",
+    showlegend=False, name="Oil fields",
+))
+
+GLOBE_H = 580
 
 fig.update_layout(
     geo=dict(
         projection_type="orthographic",
-        projection_rotation=dict(lon=55, lat=30, roll=0),
+        projection_rotation=dict(lon=55, lat=35, roll=0),
         showframe=False,
-        showcoastlines=True, coastlinecolor="#3a3a3a", coastlinewidth=0.8,
-        showland=True,  landcolor="#1c1c1c",
-        showocean=True, oceancolor="#000000",
-        showlakes=True, lakecolor="#000000",
+        showcoastlines=True, coastlinecolor="#1a1a1a", coastlinewidth=0.5,
+        showland=True, landcolor="#0a0a0a",
+        showocean=True, oceancolor="#020810",
+        showlakes=False,
         showrivers=False,
-        showcountries=True, countrycolor="#2e2e2e", countrywidth=0.5,
-        bgcolor="#000000",
+        showcountries=True, countrycolor="#1a1a1a", countrywidth=0.5,
+        bgcolor="rgba(0,0,0,0)",
     ),
-    paper_bgcolor="#000000",
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
     margin=dict(l=0, r=0, t=0, b=0),
     height=GLOBE_H,
-    showlegend=False,
-    dragmode=False,
+    showlegend=True,
+    legend=dict(
+        bgcolor="#0a0a0a",
+        bordercolor="#1a1a1a",
+        borderwidth=1,
+        font=dict(size=9, color="#a0a0a0", family="IBM Plex Mono, monospace"),
+        orientation="v",
+        x=0.01, y=0.99,
+        xanchor="left", yanchor="top",
+    ),
 )
 
 # Store live data for the fragment (fragment reruns don't re-execute outer scope)
@@ -487,14 +595,22 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
     with globe_col:
         event = st.plotly_chart(fig, key="energy_map", on_select="rerun",
                                 use_container_width=True,
-                                config={"scrollZoom": False, "displayModeBar": False})
+                                config={
+                    "displaylogo": False,
+                    "modeBarButtonsToRemove": [
+                        "select2d", "lasso2d", "zoomIn2d", "zoomOut2d",
+                        "autoScale2d", "hoverClosestGeo",
+                    ],
+                })
         st.markdown(
             "<div style='color:#555555;font-size:10px;margin-top:4px;padding-left:2px'>"
             "<span style='color:#39ff14'>■</span> Central Asia &nbsp;|&nbsp; "
-            "<span style='color:#f59e0b'>■</span> Middle East &nbsp;|&nbsp; "
+            "<span style='color:#f59e0b'>■</span> Gulf/ME &nbsp;|&nbsp; "
+            "<span style='color:#ff3131'>■</span> Russia &nbsp;|&nbsp; "
             "<span style='color:#ff3131'>—</span> CPC &nbsp;|&nbsp; "
-            "<span style='color:#4ade80'>—</span> BTC &nbsp;|&nbsp; "
-            "<span style='color:#a78bfa'>—</span> TANAP &nbsp;|&nbsp; "
+            "<span style='color:#39ff14'>—</span> BTC &nbsp;|&nbsp; "
+            "<span style='color:#00b4d8'>—</span> KCTS &nbsp;|&nbsp; "
+            "<span style='color:#39ff14'>●</span> Fields &nbsp;|&nbsp; "
             "<span style='color:#ff3131'>✕</span> Chokepoints"
             "</div>",
             unsafe_allow_html=True,
@@ -523,39 +639,73 @@ letter-spacing:0.1em;margin-bottom:8px'>Infrastructure</div>
 <div style='color:#555555;font-size:8px;text-transform:uppercase;
 letter-spacing:0.08em;margin-bottom:5px'>Pipelines</div>
 
-<div style='display:flex;align-items:flex-start;gap:8px;margin-bottom:6px'>
+<div style='display:flex;align-items:flex-start;gap:8px;margin-bottom:5px'>
 <div style='width:18px;height:2px;background:#ff3131;flex-shrink:0;margin-top:5px'></div>
 <div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>CPC</div>
-<div style='color:#555555;font-size:8px;line-height:1.3'>Tengiz → Novorossiysk<br>1,511 km · ~1.3 mb/day · oil</div></div>
+<div style='color:#555555;font-size:8px;line-height:1.3'>Tengiz → Novorossiysk · oil</div></div>
 </div>
 
-<div style='display:flex;align-items:flex-start;gap:8px;margin-bottom:6px'>
-<div style='width:18px;height:2px;background:#4ade80;flex-shrink:0;margin-top:5px'></div>
+<div style='display:flex;align-items:flex-start;gap:8px;margin-bottom:5px'>
+<div style='width:18px;height:2px;background:#39ff14;flex-shrink:0;margin-top:5px'></div>
 <div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>BTC</div>
-<div style='color:#555555;font-size:8px;line-height:1.3'>Baku → Tbilisi → Ceyhan<br>1,768 km · ~1.2 mb/day · oil</div></div>
+<div style='color:#555555;font-size:8px;line-height:1.3'>Baku → Tbilisi → Ceyhan · oil</div></div>
+</div>
+
+<div style='display:flex;align-items:flex-start;gap:8px;margin-bottom:5px'>
+<div style='width:18px;height:2px;background:#00b4d8;flex-shrink:0;margin-top:5px'></div>
+<div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>KCTS</div>
+<div style='color:#555555;font-size:8px;line-height:1.3'>Kazakhstan → China · oil</div></div>
+</div>
+
+<div style='display:flex;align-items:flex-start;gap:8px;margin-bottom:5px'>
+<div style='width:18px;border-top:2px dashed #ff3131;flex-shrink:0;margin-top:5px'></div>
+<div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>Atyrau-Samara</div>
+<div style='color:#555555;font-size:8px;line-height:1.3'>KZ → Russia backup route</div></div>
+</div>
+
+<div style='display:flex;align-items:flex-start;gap:8px;margin-bottom:5px'>
+<div style='width:18px;border-top:2px dashed #f59e0b;flex-shrink:0;margin-top:5px'></div>
+<div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>Saudi EWP</div>
+<div style='color:#555555;font-size:8px;line-height:1.3'>Abqaiq → Yanbu · bypass</div></div>
 </div>
 
 <div style='display:flex;align-items:flex-start;gap:8px'>
-<div style='width:18px;height:2px;background:#a78bfa;flex-shrink:0;margin-top:5px'></div>
-<div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>TANAP</div>
-<div style='color:#555555;font-size:8px;line-height:1.3'>Azerbaijan → Turkey / EU<br>1,850 km · ~16 bcm/yr · gas</div></div>
+<div style='width:18px;border-top:2px dashed #f59e0b;flex-shrink:0;margin-top:5px'></div>
+<div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>UAE ADCOP</div>
+<div style='color:#555555;font-size:8px;line-height:1.3'>Habshan → Fujairah · bypass</div></div>
 </div>
 </div>
 
 <div style='border-top:1px solid #111;padding-top:8px'>
 <div style='color:#555555;font-size:8px;text-transform:uppercase;
 letter-spacing:0.08em;margin-bottom:5px'>Chokepoints</div>
-<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px'>
-<span style='color:#ff3131;font-size:10px;flex-shrink:0;line-height:1'>✕</span>
-<div style='color:#666666;font-size:8px;line-height:1.3'>Hormuz — ~20% global oil · 17 mb/day</div>
+<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
+<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
+<div style='color:#666666;font-size:8px'>Hormuz — ~20% global oil</div>
 </div>
-<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px'>
-<span style='color:#ff3131;font-size:10px;flex-shrink:0;line-height:1'>✕</span>
-<div style='color:#666666;font-size:8px;line-height:1.3'>Bosphorus — Black Sea gateway · ~3 mb/day</div>
+<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
+<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
+<div style='color:#666666;font-size:8px'>Bosphorus — Urals tanker route</div>
+</div>
+<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
+<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
+<div style='color:#666666;font-size:8px'>Suez — Asia rerouting</div>
+</div>
+<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
+<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
+<div style='color:#666666;font-size:8px'>Bab-el-Mandeb — Houthi risk</div>
+</div>
+<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
+<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
+<div style='color:#666666;font-size:8px'>Novorossiysk — CPC terminus</div>
+</div>
+<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
+<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
+<div style='color:#666666;font-size:8px'>Ceyhan — BTC terminus</div>
 </div>
 <div style='display:flex;align-items:center;gap:7px'>
-<span style='color:#ff3131;font-size:10px;flex-shrink:0;line-height:1'>✕</span>
-<div style='color:#666666;font-size:8px;line-height:1.3'>Novorossiysk — CPC terminus · ~1.3 mb/day</div>
+<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
+<div style='color:#666666;font-size:8px'>Fujairah — UAE bypass terminus</div>
 </div>
 </div>
 
@@ -604,6 +754,10 @@ letter-spacing:0.08em;margin-bottom:5px'>Chokepoints</div>
                 kpis = [("LNG capacity", "77 MTPA"),
                         ("North Field exp.", "→126 MTPA 2030"),
                         ("Brent spot", f"${_brent:.1f}")]
+            elif iso == "YEM":
+                kpis = [("Bab-el-Mandeb", "Active threat"),
+                        ("Red Sea rerouting", "Africa +10 days"),
+                        ("Status", "Civil war · Houthis")]
             else:
                 kpis = [("Brent spot", f"${_brent:.1f}")]
 
