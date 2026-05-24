@@ -516,22 +516,22 @@ fig.add_trace(go.Scattergeo(
     hovertext="Atyrau-Samara — Russia backup route",
     hoverinfo="text", showlegend=True,
 ))
-# Saudi EWP — Hormuz bypass
+# Saudi EWP — Hormuz bypass (Abqaiq → Yanbu, west across Saudi Arabia)
 fig.add_trace(go.Scattergeo(
-    lat=[25.9, 24.7, 24.1],
-    lon=[49.7, 46.7, 38.1],
-    mode="lines", line=dict(color="#f59e0b", width=2, dash="dash"),
+    lat=[26.0, 24.8, 24.2, 24.0, 24.1],
+    lon=[49.7, 48.0, 44.5, 40.5, 38.1],
+    mode="lines", line=dict(color="#e8eaf0", width=2),
     name="Saudi EWP (Hormuz bypass)",
-    hovertext="Saudi EWP — 5 mb/day bypass capacity",
+    hovertext="Saudi EWP — Abqaiq → Yanbu · 5 mb/day bypass capacity",
     hoverinfo="text", showlegend=True,
 ))
-# UAE ADCOP — Hormuz bypass
+# UAE ADCOP — Hormuz bypass (Habshan → Fujairah through Hajar mountains)
 fig.add_trace(go.Scattergeo(
-    lat=[23.8, 25.1],
-    lon=[53.7, 56.3],
-    mode="lines", line=dict(color="#f59e0b", width=2, dash="dash"),
+    lat=[23.9, 24.4, 25.1],
+    lon=[53.7, 55.2, 56.3],
+    mode="lines", line=dict(color="#a78bfa", width=2),
     name="UAE ADCOP (Hormuz bypass)",
-    hovertext="UAE ADCOP — 1.5 mb/day bypass capacity",
+    hovertext="UAE ADCOP — Habshan → Fujairah · 1.5 mb/day bypass capacity",
     hoverinfo="text", showlegend=True,
 ))
 
@@ -772,13 +772,13 @@ letter-spacing:0.08em;margin-bottom:5px'>Pipelines</div>
 </div>
 
 <div style='display:flex;align-items:flex-start;gap:8px;margin-bottom:5px'>
-<div style='width:18px;border-top:2px dashed #f59e0b;flex-shrink:0;margin-top:5px'></div>
+<div style='width:18px;height:2px;background:#e8eaf0;flex-shrink:0;margin-top:5px'></div>
 <div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>Saudi EWP</div>
 <div style='color:#555555;font-size:8px;line-height:1.3'>Abqaiq → Yanbu · bypass</div></div>
 </div>
 
 <div style='display:flex;align-items:flex-start;gap:8px'>
-<div style='width:18px;border-top:2px dashed #f59e0b;flex-shrink:0;margin-top:5px'></div>
+<div style='width:18px;height:2px;background:#a78bfa;flex-shrink:0;margin-top:5px'></div>
 <div><div style='color:#e8eaf0;font-size:9px;font-weight:600'>UAE ADCOP</div>
 <div style='color:#555555;font-size:8px;line-height:1.3'>Habshan → Fujairah · bypass</div></div>
 </div>
