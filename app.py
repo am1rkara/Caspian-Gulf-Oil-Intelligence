@@ -117,6 +117,111 @@ COUNTRY_META = {
             "Bab-el-Mandeb — a strait carrying ~8% of global oil and LNG to Asia-Europe. "
             "Tanker rerouting around Africa adds ~10 days and ~$1M per voyage.",
             "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
+    # Transit / corridor countries
+    "RUS": ("transit", "transit", "Russia",
+            "Russia controls the CPC pipeline — KZ's primary export corridor to Novorossiysk "
+            "on the Black Sea. Post-2022 sanctions deepened the Urals–Brent discount to ~$13–15/bbl, "
+            "directly capping Kazakh realized oil prices.",
+            "", "", "",
+            [("CPC control", "~1.3 mb/day"), ("Urals discount", "~$13–15/bbl"), ("CPC length", "~1,510 km")]),
+    "AZE": ("transit", "transit", "Azerbaijan",
+            "Azerbaijan is the Caspian corridor hub — KZ tankers cross from Aktau to Baku, "
+            "then feed the BTC pipeline to Ceyhan. Shah Deniz gas supplies TANAP/TAP, "
+            "making Baku a key alternative to Russian energy supply for Europe.",
+            "", "", "",
+            [("BTC role", "Transit hub"), ("Oil production", "~600 kbd"), ("Shah Deniz", "Gas exporter")]),
+    "TUR": ("transit", "transit", "Turkey",
+            "Turkey hosts the BTC pipeline's Ceyhan export terminal and controls the Bosphorus Strait — "
+            "a chokepoint for ~3 mb/day of Urals and Caspian crude to European markets. "
+            "Turkey's position gives it leverage over both Russian and Caspian energy flows.",
+            "", "", "",
+            [("Ceyhan terminal", "BTC + Kirkuk"), ("Bosphorus transit", "~3 mb/day"), ("TANAP transit", "Gas corridor")]),
+    "CHN": ("transit", "transit", "China",
+            "China is the destination for ~200 kbd of KZ crude via the KCTS pipeline and is "
+            "Turkmenistan's dominant gas buyer via the Central Asia–China Gas Pipeline. "
+            "Beijing's buyer position gives it pricing leverage over both KZ and TKM exports.",
+            "", "", "",
+            [("KCTS imports", "~200 kbd"), ("CA gas imports", "~50 bcm/yr"), ("TKM leverage", "Sole buyer")]),
+    # Chokepoints
+    "CP_HORMUZ": ("cp", "cp", "Strait of Hormuz",
+                  "The world's most critical oil chokepoint. ~17 mb/day of crude and products transit "
+                  "through a 56km-wide strait — approximately 20% of global petroleum trade. "
+                  "Iran controls the northern shore; closure triggers immediate Brent price shock.",
+                  "Hormuz_Decomposition", "Open Hormuz Decomp", "",
+                  [("Daily transit", "~17 mb/day"), ("Global share", "~20% oil trade"), ("Risk", "Iran controls")]),
+    "CP_BOSPHORUS": ("cp", "cp", "Bosphorus Strait",
+                     "700m-wide, 30km-long strait bisecting Istanbul. ~3 mb/day of Urals and Caspian crude "
+                     "transits to European markets. Turkey controls passage under the Montreux Convention. "
+                     "Post-2022 tanker queues of 20+ days occurred as shadow fleet volume surged.",
+                     "", "", "",
+                     [("Daily transit", "~3 mb/day"), ("Controlling state", "Turkey"), ("Width", "700m minimum")]),
+    "CP_SUEZ": ("cp", "cp", "Suez Canal",
+                "Critical Asia-Europe shortcut. ~8 mb/day of oil and products transit plus Qatar and East Africa LNG. "
+                "The 2021 Ever Given blockage added ~$400M/day in global trade delays. "
+                "Alternative rerouting via Cape of Good Hope adds ~10 days and ~$300k per voyage.",
+                "", "", "",
+                [("Oil transit", "~8 mb/day"), ("Operator", "Egypt / SCA"), ("2021 incident", "Ever Given, 6 days")]),
+    "CP_BABELMANDEB": ("cp", "cp", "Bab-el-Mandeb",
+                       "18km-wide strait between Yemen and Djibouti, linking the Red Sea to the Gulf of Aden. "
+                       "~8% of global oil and LNG transits here. Houthi forces have attacked commercial vessels "
+                       "since October 2023 — rerouting around Africa adds ~10 days and ~$1M per voyage.",
+                       "", "", "",
+                       [("Daily transit", "~3.8 mb/day"), ("Houthi threat", "Active since 2023"), ("Reroute", "+10d / +$1M")]),
+    "CP_NOVOROSSIYSK": ("cp", "cp", "Novorossiysk",
+                        "Black Sea port and terminus of the CPC pipeline — KZ's primary oil export outlet. "
+                        "Russia operates the port and controls pipeline access. Exports ~1.3 mb/day of Kazakh crude. "
+                        "CPC throughput restrictions are Russia's most direct lever over KZ energy revenues.",
+                        "Central_Asia_Panel", "Open Central Asia Panel", "",
+                        [("CPC capacity", "~1.3 mb/day"), ("Controlling state", "Russia"), ("Pipeline", "~1,510 km")]),
+    "CP_CEYHAN": ("cp", "cp", "Ceyhan Terminal",
+                  "Mediterranean export terminal on Turkey's southern coast. Terminus of the BTC pipeline "
+                  "(Baku-Tbilisi-Ceyhan) and the Kirkuk–Ceyhan pipeline from Iraq. "
+                  "Handles ~1 mb/day and provides a Caspian export route bypassing Russia entirely.",
+                  "", "", "",
+                  [("BTC capacity", "~1 mb/day"), ("Pipelines", "BTC + Kirkuk-Ceyhan"), ("Country", "Turkey")]),
+    "CP_FUJAIRAH": ("cp", "cp", "Fujairah Terminal",
+                    "UAE's east coast oil hub and terminus of the Abu Dhabi Crude Oil Pipeline (ADCOP). "
+                    "Bypasses the Strait of Hormuz with 1.5 mb/day capacity. "
+                    "Built as a Hormuz contingency — only 1.5 of the combined 6.5 mb/day Saudi+UAE bypass capacity.",
+                    "Gulf_Quant_Panel", "Open Gulf Panel", "purple",
+                    [("Bypass capacity", "1.5 mb/day"), ("Pipeline", "ADCOP / Habshan"), ("Country", "UAE")]),
+    # Production fields
+    "FLD_TENGIZ": ("field", "ca", "Tengiz Field",
+                   "Kazakhstan's largest producing field, operated by Tengizchevroil (Chevron 50%, KMG 20%, "
+                   "ExxonMobil 25%). Producing since 1993, ~700 kbd. The FGP expansion is expected to add "
+                   "~260 kbd once debottlenecking completes.",
+                   "Central_Asia_Panel", "Open Central Asia Panel", "",
+                   [("Operator", "Tengizchevroil"), ("Production", "~700 kbd"), ("FGP expansion", "+260 kbd")]),
+    "FLD_KASHAGAN": ("field", "ca", "Kashagan Field",
+                     "World's 5th-largest oil field, discovered 2000, north Caspian. NCOC consortium "
+                     "(Shell, ExxonMobil, TotalEnergies, CNPC, KMG). Complex sour gas (~19% H2S) drove "
+                     "$50B+ capex. Now producing ~400 kbd after repeated startup delays.",
+                     "Central_Asia_Panel", "Open Central Asia Panel", "",
+                     [("Operator", "NCOC consortium"), ("Production", "~400 kbd"), ("H2S content", "~19%")]),
+    "FLD_KARACHAGANAK": ("field", "ca", "Karachaganak",
+                         "KZ's largest gas-condensate field, northwest Kazakhstan. Operated by KPO "
+                         "(Shell 29.25%, Eni 29.25%, Chevron 18%, Lukoil 13.5%, KMG 10%). "
+                         "Produces ~240 kbd oil equivalent plus ~14 bcm/yr gas.",
+                         "Central_Asia_Panel", "Open Central Asia Panel", "",
+                         [("Operator", "KPO (Shell/Eni)"), ("Production", "~240 kbd"), ("Gas", "~14 bcm/yr")]),
+    "FLD_GHAWAR": ("field", "me", "Ghawar (Saudi Arabia)",
+                   "World's largest conventional oil field, producing since 1951. Saudi Aramco's 2019 IPO "
+                   "disclosed ~3.8 mb/day — underpinning Saudi swing producer capacity. "
+                   "A sustained Ghawar production decline would fundamentally reshape global supply.",
+                   "Gulf_Quant_Panel", "Open Gulf Panel", "purple",
+                   [("Operator", "Saudi Aramco"), ("Production", "~3.8 mb/day"), ("Discovery", "1948")]),
+    "FLD_RUMAILA": ("field", "me", "Rumaila (Iraq)",
+                    "Iraq's largest field in southern Basra. Operated under a technical service contract "
+                    "by BP (47.6%) and CNPC (46.4%). Production ~1.4 mb/day — critical to Iraq's fiscal "
+                    "revenues given a ~$70/bbl breakeven.",
+                    "Gulf_Quant_Panel", "Open Gulf Panel", "purple",
+                    [("Operator", "BP / CNPC"), ("Production", "~1.4 mb/day"), ("Location", "Basra, S. Iraq")]),
+    "FLD_ZAKUM": ("field", "me", "Zakum (UAE)",
+                  "UAE's largest field complex (Upper/Lower Zakum), offshore Abu Dhabi. "
+                  "Operated by ADNOC with Japan's JODCO and ExxonMobil. Production ~800 kbd, "
+                  "with ADNOC targeting 1 mb/day by 2026.",
+                  "Gulf_Quant_Panel", "Open Gulf Panel", "purple",
+                  [("Operator", "ADNOC / JODCO"), ("Production", "~800 kbd"), ("Target", "1 mb/day 2026")]),
 }
 
 # Static fallback currency rates (update rarely)
@@ -317,6 +422,7 @@ fig.add_trace(go.Choropleth(
     showscale=False, marker_opacity=0.2,
     marker_line_color="#111", marker_line_width=0.3,
     hovertext=["<b>China</b><br>KCTS destination · ~200 kbd KZ imports"],
+    customdata=["CHN"],
     hoverinfo="text", showlegend=False,
 ))
 fig.add_trace(go.Choropleth(
@@ -325,6 +431,7 @@ fig.add_trace(go.Choropleth(
     showscale=False, marker_opacity=0.25,
     marker_line_color="#111", marker_line_width=0.3,
     hovertext=["<b>Russia</b><br>Controls CPC pipeline · transit risk"],
+    customdata=["RUS"],
     hoverinfo="text", showlegend=False,
 ))
 fig.add_trace(go.Choropleth(
@@ -333,6 +440,7 @@ fig.add_trace(go.Choropleth(
     showscale=False, marker_opacity=0.3,
     marker_line_color="#111", marker_line_width=0.3,
     hovertext=["<b>Turkey</b><br>BTC terminus · Bosphorus chokepoint"],
+    customdata=["TUR"],
     hoverinfo="text", showlegend=False,
 ))
 fig.add_trace(go.Choropleth(
@@ -341,6 +449,7 @@ fig.add_trace(go.Choropleth(
     showscale=False, marker_opacity=0.4,
     marker_line_color="#111", marker_line_width=0.3,
     hovertext=["<b>Azerbaijan</b><br>BTC corridor · Caspian transit hub"],
+    customdata=["AZE"],
     hoverinfo="text", showlegend=False,
 ))
 fig.add_trace(go.Choropleth(
@@ -440,14 +549,17 @@ _cpkt_tip = [
     "Ceyhan — BTC terminus",
     "Fujairah — UAE bypass terminus · 1.5 mb/day",
 ]
+_cpkt_ids = ["CP_HORMUZ", "CP_BOSPHORUS", "CP_SUEZ", "CP_BABELMANDEB",
+             "CP_NOVOROSSIYSK", "CP_CEYHAN", "CP_FUJAIRAH"]
 fig.add_trace(go.Scattergeo(
     lat=_cpkt_lat, lon=_cpkt_lon,
     mode="markers+text",
-    marker=dict(symbol="x", size=10, color="#ff3131",
-                line=dict(color="#ff3131", width=2)),
+    marker=dict(symbol="x", size=7, color="#ff3131",
+                line=dict(color="#ff3131", width=1)),
     text=_cpkt_lbl,
     textposition="top right",
     textfont=dict(size=8, color="#ff3131", family="IBM Plex Mono, monospace"),
+    customdata=_cpkt_ids,
     hovertext=_cpkt_tip, hoverinfo="text",
     showlegend=False, name="Chokepoints",
 ))
@@ -463,11 +575,14 @@ _fld_tip = [
     "Rumaila — BP/Iraq · ~1.4 mb/day",
     "Zakum — ADNOC · ~800 kbd",
 ]
+_fld_ids = ["FLD_TENGIZ", "FLD_KASHAGAN", "FLD_KARACHAGANAK",
+            "FLD_GHAWAR", "FLD_RUMAILA", "FLD_ZAKUM"]
 fig.add_trace(go.Scattergeo(
     lat=_fld_lat, lon=_fld_lon,
     mode="markers",
     marker=dict(symbol="circle", size=8, color="#39ff14", opacity=0.8,
                 line=dict(color="#39ff14", width=1)),
+    customdata=_fld_ids,
     hovertext=_fld_tip, hoverinfo="text",
     showlegend=False, name="Oil fields",
 ))
@@ -491,16 +606,7 @@ fig.update_layout(
     plot_bgcolor="rgba(0,0,0,0)",
     margin=dict(l=0, r=0, t=0, b=0),
     height=GLOBE_H,
-    showlegend=True,
-    legend=dict(
-        bgcolor="#0a0a0a",
-        bordercolor="#1a1a1a",
-        borderwidth=1,
-        font=dict(size=9, color="#a0a0a0", family="IBM Plex Mono, monospace"),
-        orientation="v",
-        x=0.01, y=0.99,
-        xanchor="left", yanchor="top",
-    ),
+    showlegend=False,
 )
 
 # Store live data for the fragment (fragment reruns don't re-execute outer scope)
@@ -607,19 +713,23 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
             "<span style='color:#39ff14'>■</span> Central Asia &nbsp;|&nbsp; "
             "<span style='color:#f59e0b'>■</span> Gulf/ME &nbsp;|&nbsp; "
             "<span style='color:#ff3131'>■</span> Russia &nbsp;|&nbsp; "
+            "<span style='color:#00b4d8'>■</span> AZE/TUR &nbsp;|&nbsp; "
             "<span style='color:#ff3131'>—</span> CPC &nbsp;|&nbsp; "
             "<span style='color:#39ff14'>—</span> BTC &nbsp;|&nbsp; "
             "<span style='color:#00b4d8'>—</span> KCTS &nbsp;|&nbsp; "
             "<span style='color:#39ff14'>●</span> Fields &nbsp;|&nbsp; "
-            "<span style='color:#ff3131'>✕</span> Chokepoints"
+            "<span style='color:#ff3131'>✕</span> Chokepoints "
+            "<span style='color:#444'>(click for info)</span>"
             "</div>",
             unsafe_allow_html=True,
         )
-        # Parse click
+        # Parse click — handle choropleth (location) and scattergeo (customdata)
         if event and event.selection and event.selection.points:
             pt  = event.selection.points[0]
-            iso = pt.get("location") or (
-                pt.get("customdata") if isinstance(pt.get("customdata"), str) else None)
+            _cd = pt.get("customdata")
+            iso = (pt.get("location") or
+                   (_cd if isinstance(_cd, str) else
+                    (_cd[0] if isinstance(_cd, list) and _cd and isinstance(_cd[0], str) else None)))
             if iso and iso in COUNTRY_META:
                 st.session_state.selected_iso = iso
 
@@ -676,49 +786,43 @@ letter-spacing:0.08em;margin-bottom:5px'>Pipelines</div>
 </div>
 </div>
 
-<div style='border-top:1px solid #111;padding-top:8px'>
-<div style='color:#555555;font-size:8px;text-transform:uppercase;
-letter-spacing:0.08em;margin-bottom:5px'>Chokepoints</div>
-<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
-<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
-<div style='color:#666666;font-size:8px'>Hormuz — ~20% global oil</div>
-</div>
-<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
-<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
-<div style='color:#666666;font-size:8px'>Bosphorus — Urals tanker route</div>
-</div>
-<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
-<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
-<div style='color:#666666;font-size:8px'>Suez — Asia rerouting</div>
-</div>
-<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
-<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
-<div style='color:#666666;font-size:8px'>Bab-el-Mandeb — Houthi risk</div>
-</div>
-<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
-<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
-<div style='color:#666666;font-size:8px'>Novorossiysk — CPC terminus</div>
-</div>
-<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>
-<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
-<div style='color:#666666;font-size:8px'>Ceyhan — BTC terminus</div>
-</div>
-<div style='display:flex;align-items:center;gap:7px'>
-<span style='color:#ff3131;font-size:9px;flex-shrink:0'>✕</span>
-<div style='color:#666666;font-size:8px'>Fujairah — UAE bypass terminus</div>
+
+<div style='border-top:1px solid #111;padding-top:8px;margin-top:4px'>
+<div style='color:#555555;font-size:8px;line-height:1.5'>
+<span style='color:#ff3131'>✕</span> chokepoints &nbsp;·&nbsp;
+<span style='color:#39ff14'>●</span> fields &nbsp;·&nbsp;
+<span style='color:#39ff14'>■</span> CA &nbsp;·&nbsp;
+<span style='color:#f59e0b'>■</span> Gulf<br>
+<span style='color:#444'>click any marker for info</span>
 </div>
 </div>
 
 </div>
 """, unsafe_allow_html=True)
 
-        # Country info panel (bottom half)
+        # Country / feature info panel (bottom half)
         iso = st.session_state.get("selected_iso")
         if iso and iso in COUNTRY_META:
-            region, accent, title, desc, page_slug, btn_label, btn_cls = COUNTRY_META[iso]
-            border_col = "#39ff14" if region == "ca" else "#f59e0b"
+            meta = COUNTRY_META[iso]
+            region, accent, title, desc, page_slug, btn_label, btn_cls = meta[:7]
+            static_kpis = meta[7] if len(meta) > 7 else None
 
-            if iso == "KAZ":
+            if region == "ca":
+                border_col = "#39ff14"
+            elif region == "me":
+                border_col = "#f59e0b"
+            elif region == "transit":
+                border_col = "#00b4d8"
+            elif region == "cp":
+                border_col = "#ff3131"
+            elif region == "field":
+                border_col = "#39ff14" if accent == "ca" else "#f59e0b"
+            else:
+                border_col = "#555555"
+
+            if static_kpis:
+                kpis = static_kpis
+            elif iso == "KAZ":
                 kpis = [("KZT / USD", f"{_kzt:.0f}"),
                         ("Urals realized", f"~${_urals:.0f}/bbl"),
                         ("CPC utilization", f"~{round(_cpc['utilization_pct'])}%")]
@@ -771,6 +875,12 @@ letter-spacing:0.08em;margin-bottom:5px'>Chokepoints</div>
                 for lbl, val in kpis
             )
             nav_border = "#39ff14" if not btn_cls else "#f59e0b"
+            btn_html = (
+                f"<a href='/{page_slug}' target='_self' "
+                f"style='display:inline-block;background:#000;border:1px solid {nav_border};"
+                f"padding:5px 12px;color:{nav_border};font-size:10px;font-weight:500;"
+                f"text-decoration:none;letter-spacing:0.03em'>{btn_label}</a>"
+            ) if btn_label else ""
             st.markdown(f"""
 <div style='background:#0a0a0a;border:1px solid #1a1a1a;
 border-left:3px solid {border_col};padding:12px 14px;
@@ -782,18 +892,16 @@ margin-bottom:10px'>{desc}</div>
 <div style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px'>
 {kpi_html}
 </div>
-<a href='/{page_slug}' target='_self'
-style='display:inline-block;background:#000;border:1px solid {nav_border};
-padding:5px 12px;color:{nav_border};font-size:10px;font-weight:500;
-text-decoration:none;letter-spacing:0.03em'>{btn_label}</a>
+{btn_html}
 </div>
 """, unsafe_allow_html=True)
         else:
             st.markdown(
                 f"<div style='color:#3a3a3a;font-size:10px;"
                 f"height:{HALF_H}px;display:flex;align-items:center;"
-                f"justify-content:center;border:1px solid #111;"
-                f"font-family:IBM Plex Mono,monospace;'>← click a country</div>",
+                f"justify-content:center;border:1px solid #111;text-align:center;"
+                f"font-family:IBM Plex Mono,monospace;line-height:1.6'>"
+                f"← click a country,<br>field or chokepoint</div>",
                 unsafe_allow_html=True,
             )
 
