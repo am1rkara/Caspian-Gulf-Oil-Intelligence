@@ -15,7 +15,7 @@ import time
 import yfinance as yf
 import streamlit as st
 import plotly.graph_objects as go
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from src.utils.css import inject_css, sparkline_svg, mc_card
 from src.nav import render_topnav, render_status_bar
@@ -24,6 +24,7 @@ from src.metrics.hormuz import get_hormuz_status
 from src.data.imf import IMF_BREAKEVENS_USD, OPEC_QUOTAS_KBPD, URALS_DISCOUNT
 from src.metrics.calculations import urals_proxy, cpc_utilization, fiscal_nowcast
 from src.feeds.rss import get_articles
+from src.analysis.ai_notes import generate_thesis_notes
 
 st.set_page_config(
     page_title="Caspian-Gulf Oil Intelligence",
@@ -253,6 +254,12 @@ def load_production_home():
 def load_articles():
     return get_articles(max_per_feed=10)
 
+@st.cache_data(ttl=21600)
+def load_situation_note(cache_key: str, market_data_frozen: tuple) -> dict:
+    """Cache key = date_hormuzstatus; regenerates when Hormuz status changes."""
+    arts, _ = load_articles()
+    return generate_thesis_notes(dict(market_data_frozen), arts)
+
 # ── Auto-rerun ticker every 60s ────────────────────────────────────────────────
 if "home_ts" not in st.session_state:
     st.session_state.home_ts = time.time()
@@ -278,6 +285,27 @@ cpc      = cpc_utilization(kz_prod)
 
 
 hormuz = get_hormuz_status(articles)
+
+_disc    = URALS_DISCOUNT["post_2022"]
+_buf_lo  = max(0, round(fiscal["buffer_bn"] - 2))
+_buf_hi  = round(fiscal["buffer_bn"] + 2)
+_md_home = {
+    "brent":              brent,
+    "wti":                wti,
+    "kzt":                kzt,
+    "kzt_fair_value":     0.0,
+    "kzt_deviation":      0.0,
+    "hormuz_status":      hormuz["level"],
+    "hormuz_signals":     hormuz["count"],
+    "cpc_utilization":    cpc["utilization_pct"],
+    "fiscal_buffer_low":  float(_buf_lo),
+    "fiscal_buffer_high": float(_buf_hi),
+    "contango_spread":    0.0,
+    "urals_discount":     _disc,
+    "urals_realized":     urals_proxy(brent),
+}
+_home_cache_key = f"{date.today().isoformat()}_{hormuz['level']}"
+_home_notes = load_situation_note(_home_cache_key, tuple(sorted(_md_home.items())))
 
 render_status_bar(
     brent=brent, wti=wti, kzt=kzt,
@@ -783,17 +811,35 @@ margin-bottom:10px'>{desc}</div>
 
 _render_globe()
 
-# ── Analyst Note ───────────────────────────────────────────────────────────────
-st.markdown(
-    "<div style='border-left:3px solid #39ff14;background:#0a0a0a;padding:16px;"
-    "margin:16px 0 12px'>"
-    "<div style='color:#555555;font-size:9px;text-transform:uppercase;"
-    "letter-spacing:0.1em;margin-bottom:6px'># ANALYST NOTE — update manually</div>"
-    "<div style='color:#a0a0a0;font-size:13px;font-family:\"IBM Plex Mono\",monospace;"
-    "line-height:1.6'>[placeholder — replace with your written view]</div>"
-    "</div>",
-    unsafe_allow_html=True,
-)
+# ── Analyst Note (SITUATION from AI thesis notes) ──────────────────────────────
+_note_src  = _home_notes.get("source", "no_key")
+_note_text = _home_notes.get("situation", "").strip()
+_note_ts   = _home_notes.get("generated_at", "—") or "—"
+
+if _note_src == "groq" and _note_text:
+    st.markdown(
+        "<div style='border-left:3px solid #39ff14;background:#0a0a0a;padding:16px;"
+        "margin:16px 0 12px'>"
+        f"<div style='color:#a0a0a0;font-size:13px;font-family:\"IBM Plex Mono\",monospace;"
+        f"line-height:1.7'>{_note_text}</div>"
+        f"<div style='color:#555555;font-size:9px;margin-top:8px;"
+        f"font-family:\"IBM Plex Mono\",monospace'>"
+        f"AI-GENERATED &nbsp;·&nbsp; {_note_ts} &nbsp;·&nbsp; "
+        f"Groq LLaMA 3.3 70B &nbsp;·&nbsp; Review before sharing"
+        f"</div></div>",
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        "<div style='border-left:3px solid #39ff14;background:#0a0a0a;padding:16px;"
+        "margin:16px 0 12px'>"
+        "<div style='color:#555555;font-size:9px;text-transform:uppercase;"
+        "letter-spacing:0.1em;margin-bottom:6px'># ANALYST NOTE — update manually</div>"
+        "<div style='color:#a0a0a0;font-size:13px;font-family:\"IBM Plex Mono\",monospace;"
+        "line-height:1.6'>[placeholder — configure GROQ_API_KEY to enable AI notes]</div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 # ── Latest Headlines ───────────────────────────────────────────────────────────
 st.markdown("<div class='sec' style='margin-top:4px'>Latest Intelligence</div>",

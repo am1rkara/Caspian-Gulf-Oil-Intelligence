@@ -1,7 +1,7 @@
 """
 pages/1_Thesis.py
-Analytical thesis — five structured sections with supporting charts.
-Placeholders are marked for manual update.
+Analytical thesis — five structured sections with AI-generated notes
+and supporting charts.
 """
 
 import sys
@@ -14,19 +14,22 @@ load_dotenv()
 import os
 import numpy as np
 import pandas as pd
+import yfinance as yf
 import streamlit as st
 import plotly.graph_objects as go
+from datetime import date
 
 from src.utils.css import inject_css, TERMINAL_PLOT, TERMINAL_GRID
 from src.nav import render_topnav, render_status_bar
 from src.data.market import get_prices, get_brent_history, get_multi_history
 from src.data.eia import get_production
-from src.data.imf import IMF_BREAKEVENS_USD, OPEC_QUOTAS_KBPD, CPC_CAPACITY_KBPD, URALS_DISCOUNT
+from src.data.imf import IMF_BREAKEVENS_USD, URALS_DISCOUNT
 from src.feeds.rss import get_articles
 from src.metrics.hormuz import get_hormuz_status, DISRUPTION_FRAC
 from src.metrics.calculations import (
     urals_proxy, cpc_utilization, fiscal_nowcast, multivariate_kzt_ols,
 )
+from src.analysis.ai_notes import generate_thesis_notes
 
 st.set_page_config(page_title="Thesis", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -36,7 +39,7 @@ render_topnav("Thesis")
 PLOT = TERMINAL_PLOT
 GRID = TERMINAL_GRID
 
-# ── Data loaders ────────────────────────────────────────────────────────────────
+# ── Data loaders ─────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=60)
 def load_prices():
     return get_prices()
@@ -62,6 +65,43 @@ def load_history():
 def compute_kzt_model():
     return multivariate_kzt_ols(load_history())
 
+@st.cache_data(ttl=3600)
+def load_contango_spread(spot_brent: float) -> float:
+    """Returns prompt–6M spread (positive = backwardation, negative = contango)."""
+    def _series(raw):
+        return raw.iloc[:, 0].dropna() if isinstance(raw, pd.DataFrame) else raw.dropna()
+    def _clean(s):
+        idx = pd.DatetimeIndex(s.index)
+        return s.set_axis(idx.tz_localize(None) if idx.tz is None else idx.tz_convert(None))
+    try:
+        spot = _clean(_series(
+            yf.download("BZ=F", period="30d", progress=False, auto_adjust=True)["Close"]
+        ))
+        for t in ["BZX26=F", "BZV26=F", "BZZ26=F", "BZM6=F", "BZN26=F"]:
+            try:
+                fwd = _clean(_series(
+                    yf.download(t, period="5d", progress=False, auto_adjust=True)["Close"]
+                ))
+                if len(fwd) < 3:
+                    continue
+                return round(float(spot.iloc[-1]) - float(fwd.iloc[-1]), 2)
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return round(spot_brent * (-0.05 / 2), 2)  # carry model fallback
+
+@st.cache_data(ttl=21600)
+def load_thesis_notes(cache_key: str, market_data_frozen: tuple) -> dict:
+    """cache_key = date_hormuzstatus so it regenerates on status change."""
+    # Reconstruct market_data dict from frozen tuple of (key, value) pairs
+    market_data = dict(market_data_frozen)
+    # Reconstruct articles list from cache_key — use already-loaded articles
+    arts = load_articles()
+    return generate_thesis_notes(market_data, arts)
+
+
+# ── Compute everything ───────────────────────────────────────────────────────────
 prices     = load_prices()
 brent_hist = load_brent_hist()
 articles   = load_articles()
@@ -74,6 +114,47 @@ hormuz     = get_hormuz_status(articles)
 kz_prod    = production["Kazakhstan"]["latest_kbpd"]
 cpc        = cpc_utilization(kz_prod)
 fiscal     = fiscal_nowcast(live_brent, kz_prod, IMF_BREAKEVENS_USD["Kazakhstan"])
+disc       = URALS_DISCOUNT["post_2022"]
+urals      = urals_proxy(live_brent)
+
+# KZT model
+with st.spinner(""):
+    model = compute_kzt_model()
+post = model.get("post")
+kzt_fv  = 0.0
+kzt_dev = 0.0
+if post:
+    kzt_fv  = (post["alpha"]
+               + post["b_brent"] * live_brent
+               + post["b_dxy"]   * prices.get("dxy", 103)
+               + post["b_rub"]   * prices.get("rub_per_usd", 90))
+    kzt_dev = live_kzt - kzt_fv
+
+# Brent curve spread
+contango_spread = load_contango_spread(live_brent)
+
+# Fiscal buffer range
+buf_lo = max(0, round(fiscal["buffer_bn"] - 2))
+buf_hi = round(fiscal["buffer_bn"] + 2)
+
+# Build market_data and call AI notes (cache_key = date + hormuz_status)
+_market_data = {
+    "brent":              live_brent,
+    "wti":                live_wti,
+    "kzt":                live_kzt,
+    "kzt_fair_value":     kzt_fv,
+    "kzt_deviation":      kzt_dev,
+    "hormuz_status":      hormuz["level"],
+    "hormuz_signals":     hormuz["count"],
+    "cpc_utilization":    cpc["utilization_pct"],
+    "fiscal_buffer_low":  float(buf_lo),
+    "fiscal_buffer_high": float(buf_hi),
+    "contango_spread":    contango_spread,
+    "urals_discount":     disc,
+    "urals_realized":     urals,
+}
+_cache_key = f"{date.today().isoformat()}_{hormuz['level']}"
+notes = load_thesis_notes(_cache_key, tuple(sorted(_market_data.items())))
 
 render_status_bar(
     brent=live_brent, wti=live_wti, kzt=live_kzt,
@@ -82,12 +163,45 @@ render_status_bar(
     ts=prices.get("fetched_at", ""),
 )
 
-# ── Shared section header style ─────────────────────────────────────────────────
+# ── Helpers ──────────────────────────────────────────────────────────────────────
 def _section(label: str) -> None:
     st.markdown(
         f"<div style='color:#555555;font-size:10px;text-transform:uppercase;"
         f"letter-spacing:0.15em;margin:28px 0 6px;border-bottom:1px solid #1a1a1a;"
         f"padding-bottom:5px'>{label}</div>",
+        unsafe_allow_html=True,
+    )
+
+def _note(section_key: str) -> None:
+    """Display AI note for the given section key, or placeholder if unavailable."""
+    source = notes.get("source", "no_key")
+    ts     = notes.get("generated_at", "—") or "—"
+    text   = notes.get(section_key, "").strip()
+
+    if source == "no_key":
+        _placeholder("# ANALYST NOTE — configure GROQ_API_KEY to enable")
+        return
+
+    if source in ("error", "no_package") or not text:
+        err = notes.get("error", "Generation failed")
+        _placeholder(f"# ANALYST NOTE — AI generation unavailable: {err}")
+        return
+
+    _disclosure = (
+        f"<div style='color:#555555;font-size:9px;margin-top:8px;"
+        f"font-family:\"IBM Plex Mono\",monospace'>"
+        f"AI-GENERATED &nbsp;·&nbsp; {ts} &nbsp;·&nbsp; "
+        f"Groq LLaMA 3.3 70B &nbsp;·&nbsp; Review before sharing"
+        f"</div>"
+    )
+    st.markdown(
+        f"<div style='border-left:3px solid #1a1a1a;background:#0a0a0a;"
+        f"padding:12px 16px;margin-bottom:12px'>"
+        f"<div style='color:#a0a0a0;font-size:13px;"
+        f"font-family:\"IBM Plex Mono\",monospace;line-height:1.7'>"
+        f"{text}</div>"
+        f"{_disclosure}"
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -103,17 +217,15 @@ def _placeholder(text: str = "[placeholder — replace with your written view]")
         unsafe_allow_html=True,
     )
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # SITUATION — Hormuz / Brent decomposition waterfall
 # ══════════════════════════════════════════════════════════════════════════════
 _section("SITUATION")
-_placeholder("Current Hormuz/Brent situation — what is the market pricing and why")
+_note("situation")
 
-# Hormuz waterfall model constants
 HORMUZ_DAILY_MBPD   = 17.0
 ELASTICITY          = 6.0
-ELASTICITY_LO       = 5.0
-ELASTICITY_HI       = 8.0
 SPR_RELEASE_MBPD    = 0.19
 US_PROD_OFFSET_MBPD = 0.5
 INDIA_DEMAND_OFFSET = -1.5
@@ -122,11 +234,8 @@ window = brent_hist[
     (brent_hist["date"] >= "2025-10-01") &
     (brent_hist["date"] <= "2025-12-31")
 ]
-if len(window) >= 5:
-    baseline_brent = float(window["brent_usd"].mean())
-else:
-    baseline_brent = float(brent_hist.tail(252)["brent_usd"].mean())
-
+baseline_brent = (float(window["brent_usd"].mean()) if len(window) >= 5
+                  else float(brent_hist.tail(252)["brent_usd"].mean()))
 total_spike = live_brent - baseline_brent
 
 if total_spike > 0:
@@ -139,15 +248,15 @@ if total_spike > 0:
     total_offsets    = spr_offset + us_prod_offset + india_offset
     war_premium      = total_spike - supply_component - total_offsets
 
-    labels  = ["Supply disruption", "SPR offset", "US production",
-               "India demand", "War / risk premium", "Total"]
-    values  = [supply_component, spr_offset, us_prod_offset,
-               india_offset, war_premium, total_spike]
-    measure = ["relative", "relative", "relative", "relative", "relative", "total"]
-
     fig_wf = go.Figure(go.Waterfall(
-        orientation="v", measure=measure, x=labels, y=values,
-        text=[f"${v:+.0f}" for v in values],
+        orientation="v",
+        measure=["relative", "relative", "relative", "relative", "relative", "total"],
+        x=["Supply disruption", "SPR offset", "US production",
+           "India demand", "War / risk premium", "Total"],
+        y=[supply_component, spr_offset, us_prod_offset,
+           india_offset, war_premium, total_spike],
+        text=[f"${v:+.0f}" for v in [supply_component, spr_offset, us_prod_offset,
+                                      india_offset, war_premium, total_spike]],
         textposition="outside",
         textfont=dict(size=11, color="#c8ccd8"),
         connector=dict(line=dict(color="#2d3139", width=1)),
@@ -170,7 +279,7 @@ if total_spike > 0:
     )
 else:
     st.markdown(
-        "<div class='muted'>Brent is at or below Oct–Dec 2025 baseline — "
+        "<div class='muted'>Brent at or below Oct–Dec 2025 baseline — "
         "waterfall meaningful only above reference level.</div>",
         unsafe_allow_html=True,
     )
@@ -179,7 +288,7 @@ else:
 # TRANSMISSION — KZ export supply chain
 # ══════════════════════════════════════════════════════════════════════════════
 _section("TRANSMISSION")
-_placeholder("Gulf → Kazakhstan transmission — how Hormuz risk flows through to KZ fiscal position")
+_note("transmission")
 
 cpc_vol  = round(kz_prod * 0.65)
 btc_vol  = 200
@@ -192,8 +301,7 @@ fig_sankey = go.Figure(go.Sankey(
         label=["KZ Production", "CPC Route", "BTC Route", "China Pipeline", "Domestic / Other",
                "NW European Refiners", "Mediterranean Refiners", "E. Europe / Turkey",
                "Chinese Refiners"],
-        color=["#3b82f6",
-               "#f59e0b", "#4ade80", "#22d3ee", "#374151",
+        color=["#3b82f6", "#f59e0b", "#4ade80", "#22d3ee", "#374151",
                "#4b5563", "#4b5563", "#4b5563", "#4b5563"],
         pad=18, thickness=18,
         line=dict(color="#1e2128", width=0.5),
@@ -219,7 +327,8 @@ fig_sankey.update_layout(
 )
 st.plotly_chart(fig_sankey, use_container_width=True)
 st.markdown(
-    f"<div class='muted'>CPC ~{cpc_vol:,} kbd (65% of production) · BTC ~200 kbd · KCTS ~200 kbd</div>",
+    f"<div class='muted'>CPC ~{cpc_vol:,} kbd (65% of production) · "
+    f"BTC ~200 kbd · KCTS ~200 kbd</div>",
     unsafe_allow_html=True,
 )
 
@@ -227,7 +336,7 @@ st.markdown(
 # CONSTRAINTS — CPC disruption timeline
 # ══════════════════════════════════════════════════════════════════════════════
 _section("CONSTRAINTS")
-_placeholder("Structural limits on KZ upside — CPC concentration, Urals discount, route risk")
+_note("constraints")
 
 _CPC_EVENTS = [
     {"date": "2022-03-22", "label": "Storm Novorossiysk",    "severity": "high"},
@@ -239,7 +348,7 @@ _CPC_EVENTS = [
     {"date": "2024-06-01", "label": "Partial normalization", "severity": "low"},
 ]
 _SEV_COLOR = {"high": "#ff3131", "medium": "#f59e0b", "low": "#39ff14"}
-_CPC_FLOW = [
+_CPC_FLOW  = [
     ("2019-01-01", 59.6), ("2019-07-01", 61.2),
     ("2020-01-01", 55.8), ("2020-07-01", 57.1),
     ("2021-01-01", 60.4), ("2021-07-01", 62.3),
@@ -260,19 +369,16 @@ fig_cpc.add_trace(go.Scatter(
 ))
 fig_cpc.add_hline(y=67, line_dash="dash", line_color="#ff3131", line_width=1.2)
 fig_cpc.add_annotation(
-    x=flow_df["date"].max(), y=67,
-    text="Nameplate 67 MT/yr",
+    x=flow_df["date"].max(), y=67, text="Nameplate 67 MT/yr",
     showarrow=False, font=dict(size=9, color="#ff3131"),
     xanchor="right", xshift=-4, yshift=7,
 )
-_ev_parsed = [(pd.to_datetime(e["date"]), e) for e in _CPC_EVENTS]
 _Y = [1.04, 1.13, 1.22, 1.31]
-for i, (dt, ev) in enumerate(_ev_parsed):
+for i, ev in enumerate(_CPC_EVENTS):
+    dt    = pd.to_datetime(ev["date"])
     color = _SEV_COLOR[ev["severity"]]
-    fig_cpc.add_vline(
-        x=str(dt.date()), line_dash="dash",
-        line_color=color, line_width=1, opacity=0.7,
-    )
+    fig_cpc.add_vline(x=str(dt.date()), line_dash="dash",
+                      line_color=color, line_width=1, opacity=0.7)
     fig_cpc.add_annotation(
         x=str(dt.date()), y=_Y[i % 4], xref="x", yref="paper",
         text=ev["label"], showarrow=True,
@@ -298,12 +404,8 @@ st.markdown(
 # POSITIONING — KZT fair value deviation
 # ══════════════════════════════════════════════════════════════════════════════
 _section("POSITIONING")
-_placeholder("Model outputs and positioning — KZT deviation, fiscal buffer, trade setup")
+_note("positioning")
 
-with st.spinner(""):
-    model = compute_kzt_model()
-
-post = model.get("post")
 if post and len(post.get("dates", [])) > 1:
     sigma      = post["resid_std"]
     post_resid = post["residuals"]
@@ -317,13 +419,6 @@ if post and len(post.get("dates", [])) > 1:
         max_idx = int(np.argmax(post_resid))
     max_date = post_dates[max_idx]
     max_val  = float(post_resid[max_idx])
-
-    fv = (post["alpha"]
-          + post["b_brent"] * live_brent
-          + post["b_dxy"]   * prices.get("dxy", 103)
-          + post["b_rub"]   * prices.get("rub_per_usd", 90))
-    deviation = live_kzt - fv
-    dev_dir   = "above" if deviation > 0 else "below"
 
     fig_resid = go.Figure()
     fig_resid.add_hrect(y0=-sigma, y1=sigma,
@@ -350,9 +445,10 @@ if post and len(post.get("dates", [])) > 1:
         yaxis=dict(title="Residual (KZT)", gridcolor=GRID, title_font=dict(size=11)),
     )
     st.plotly_chart(fig_resid, use_container_width=True)
+    dev_dir = "above" if kzt_dev > 0 else "below"
     st.markdown(
-        f"<div class='muted'>KZT fair value ~{fv:.0f} · spot {live_kzt:.0f} · "
-        f"{abs(deviation):.0f} tenge {dev_dir} model · ±{sigma:.0f} 1σ band</div>",
+        f"<div class='muted'>Fair value ~{kzt_fv:.0f} · spot {live_kzt:.0f} · "
+        f"{abs(kzt_dev):.0f} tenge {dev_dir} model · ±{sigma:.0f} 1σ band</div>",
         unsafe_allow_html=True,
     )
 else:
@@ -365,4 +461,4 @@ else:
 # RISKS — text only
 # ══════════════════════════════════════════════════════════════════════════════
 _section("RISKS")
-_placeholder("What changes the view — de-escalation signals, CPC reopening, KZT policy shift, demand collapse")
+_note("risks")
