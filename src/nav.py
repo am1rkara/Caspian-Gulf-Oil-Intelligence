@@ -7,7 +7,7 @@ import streamlit as st
 from datetime import datetime, timezone
 
 _PAGES = [
-    ("CGOI",        "/",                  "Overview"),
+    ("Overview",    "/",                  "Overview"),
     ("Thesis",      "/Thesis",            "Thesis"),
     ("Market Data", "/Market_Data",       "Market"),
     ("News",        "/News_Intelligence", "News"),
@@ -25,7 +25,12 @@ def render_topnav(current: str = "") -> None:
         )
     st.markdown(
         f"<div class='topnav'>"
-        f"<span class='tnav-brand'>CGOI</span>"
+        f"<div class='tnav-brand'>"
+        f"<span style='color:#39ff14;font-size:13px;font-weight:700;"
+        f"font-family:\"IBM Plex Mono\",monospace;letter-spacing:0.05em'>CGOI</span>"
+        f"<span style='color:#555555;font-size:9px;font-family:\"IBM Plex Mono\",monospace;"
+        f"letter-spacing:0.1em;text-transform:uppercase'>Geopolitical Energy Risk Terminal</span>"
+        f"</div>"
         f"<div class='tnav-links'>{items}</div>"
         f"<span class='tnav-ts'>{now}</span>"
         f"</div>",

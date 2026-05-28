@@ -187,20 +187,12 @@ def _note(section_key: str) -> None:
         _placeholder(f"# ANALYST NOTE — AI generation unavailable: {err}")
         return
 
-    _disclosure = (
-        f"<div style='color:#555555;font-size:9px;margin-top:8px;"
-        f"font-family:\"IBM Plex Mono\",monospace'>"
-        f"AI-GENERATED &nbsp;·&nbsp; {ts} &nbsp;·&nbsp; "
-        f"Groq LLaMA 3.3 70B &nbsp;·&nbsp; Review before sharing"
-        f"</div>"
-    )
     st.markdown(
         f"<div style='border-left:3px solid #1a1a1a;background:#0a0a0a;"
         f"padding:12px 16px;margin-bottom:12px'>"
         f"<div style='color:#a0a0a0;font-size:13px;"
         f"font-family:\"IBM Plex Mono\",monospace;line-height:1.7'>"
         f"{text}</div>"
-        f"{_disclosure}"
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -508,3 +500,15 @@ if post:
     )
     st.plotly_chart(fig_risk, use_container_width=True)
     _desc(f"Model fair value at each Brent scenario · DXY {_live_dxy:.0f} and RUB {_live_rub:.0f} held at live rates · ±{_kzt_sigma:.0f} tenge model error")
+
+# ── AI attribution (single line, bottom of page) ─────────────────────────────
+if notes.get("source") == "groq":
+    _ai_ts = notes.get("generated_at", "—") or "—"
+    st.markdown(
+        f"<div style='color:#555555;font-size:9px;font-family:\"IBM Plex Mono\",monospace;"
+        f"margin-top:24px;border-top:1px solid #111;padding-top:8px'>"
+        f"Thesis sections: AI-assisted draft &nbsp;·&nbsp; {_ai_ts} &nbsp;·&nbsp; "
+        f"Override via analyst_overrides.json"
+        f"</div>",
+        unsafe_allow_html=True,
+    )

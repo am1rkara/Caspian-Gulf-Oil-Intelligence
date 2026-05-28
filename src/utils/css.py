@@ -62,18 +62,15 @@ button[data-testid="baseButton-headerNoPadding"],
     gap: 0;
 }
 .tnav-brand {
-    color: #39ff14;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
     margin-right: 32px;
     flex-shrink: 0;
     border-right: 1px solid #1a1a1a;
     padding-right: 32px;
     height: 52px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
 }
 .tnav-links {
     display: flex;

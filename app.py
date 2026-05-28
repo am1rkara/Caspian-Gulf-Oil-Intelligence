@@ -809,6 +809,81 @@ margin-bottom:10px'>{desc}</div>
                 unsafe_allow_html=True,
             )
 
+# ── Intro Section ─────────────────────────────────────────────────────────────
+_intro_l, _intro_r = st.columns([3, 2])
+
+with _intro_l:
+    st.markdown(
+        "<div style='padding-right:24px'>"
+        "<div style='color:#39ff14;font-size:1.8rem;font-weight:700;"
+        "font-family:\"IBM Plex Mono\",monospace;letter-spacing:0.05em;"
+        "line-height:1'>CGOI</div>"
+        "<div style='color:#555555;font-size:11px;font-family:\"IBM Plex Mono\",monospace;"
+        "text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px'>"
+        "Caspian-Gulf Oil Intelligence</div>"
+        "<hr style='border:none;border-top:1px solid #1a1a1a;margin:12px 0'>"
+        "<div style='color:#a0a0a0;font-size:13px;font-family:\"IBM Plex Mono\",monospace;"
+        "line-height:1.8'>"
+        "Kazakhstan exports approximately 1.4 million barrels per day, "
+        "with ~80% transiting a single Russian-controlled corridor — "
+        "the CPC pipeline to Novorossiysk. When Gulf chokepoint risk "
+        "tightens and Brent rises, Kazakhstan's fiscal position improves "
+        "in theory. In practice, three structural constraints cap the "
+        "transmission: CPC exports price off Urals, currently –$15/bbl "
+        "below Brent; Russia has blocked pipeline expansion beyond "
+        "67 MT/yr nameplate; and route concentration transforms "
+        "geopolitical tension into a fiscal bottleneck rather than "
+        "a windfall."
+        "<br><br>"
+        "This terminal tracks that transmission mechanism in real time — "
+        "Gulf supply risk, OPEC+ compliance, CPC throughput, KZT fair "
+        "value, and the fiscal buffer between Kazakhstan and a revenue "
+        "shortfall."
+        "</div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+with _intro_r:
+    st.markdown(
+        "<div style='background:#0a0a0a;border:1px solid #1a1a1a;padding:16px'>"
+        "<div style='border-bottom:1px solid #1a1a1a;padding:10px 0'>"
+        "<div style='color:#555555;font-size:10px;font-family:\"IBM Plex Mono\",monospace;"
+        "text-transform:uppercase;letter-spacing:0.08em'>Daily Export Volume</div>"
+        "<div style='color:#39ff14;font-size:16px;font-weight:600;"
+        "font-family:\"IBM Plex Mono\",monospace'>~1.4 mb/day</div>"
+        "</div>"
+        "<div style='border-bottom:1px solid #1a1a1a;padding:10px 0'>"
+        "<div style='color:#555555;font-size:10px;font-family:\"IBM Plex Mono\",monospace;"
+        "text-transform:uppercase;letter-spacing:0.08em'>CPC Route Share</div>"
+        "<div style='color:#39ff14;font-size:16px;font-weight:600;"
+        "font-family:\"IBM Plex Mono\",monospace'>~80% of exports</div>"
+        "</div>"
+        "<div style='border-bottom:1px solid #1a1a1a;padding:10px 0'>"
+        "<div style='color:#555555;font-size:10px;font-family:\"IBM Plex Mono\",monospace;"
+        "text-transform:uppercase;letter-spacing:0.08em'>Urals Discount</div>"
+        "<div style='color:#39ff14;font-size:16px;font-weight:600;"
+        "font-family:\"IBM Plex Mono\",monospace'>–$15/bbl vs Brent</div>"
+        "</div>"
+        "<div style='padding:10px 0'>"
+        "<div style='color:#555555;font-size:10px;font-family:\"IBM Plex Mono\",monospace;"
+        "text-transform:uppercase;letter-spacing:0.08em'>Fiscal Breakeven</div>"
+        "<div style='color:#39ff14;font-size:16px;font-weight:600;"
+        "font-family:\"IBM Plex Mono\",monospace'>$65/bbl · IMF 2025</div>"
+        "</div>"
+        "<div style='color:#555555;font-size:9px;font-family:\"IBM Plex Mono\",monospace;"
+        "margin-top:8px;border-top:1px solid #111;padding-top:8px'>"
+        "Structural parameters · updated when IMF/KMG publish"
+        "</div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+st.markdown(
+    "<hr style='border:none;border-top:1px solid #1a1a1a;margin:0 0 24px'>",
+    unsafe_allow_html=True,
+)
+
 _render_globe()
 
 # ── Analyst Note (SITUATION from AI thesis notes) ──────────────────────────────
