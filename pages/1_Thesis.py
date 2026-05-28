@@ -218,6 +218,23 @@ def _placeholder(text: str = "[placeholder — replace with your written view]")
     )
 
 
+def _lbl(text: str) -> None:
+    st.markdown(
+        f"<div style='color:#555555;font-size:10px;font-family:\"IBM Plex Mono\",monospace;"
+        f"text-transform:uppercase;letter-spacing:0.08em;"
+        f"margin-bottom:4px;margin-top:16px'>{text}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _desc(text: str) -> None:
+    st.markdown(
+        f"<div style='color:#444444;font-size:11px;font-family:\"IBM Plex Mono\",monospace;"
+        f"line-height:1.5;margin-top:3px;margin-bottom:20px'>{text}</div>",
+        unsafe_allow_html=True,
+    )
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # SITUATION — Hormuz / Brent decomposition waterfall
 # ══════════════════════════════════════════════════════════════════════════════
@@ -238,6 +255,7 @@ baseline_brent = (float(window["brent_usd"].mean()) if len(window) >= 5
                   else float(brent_hist.tail(252)["brent_usd"].mean()))
 total_spike = live_brent - baseline_brent
 
+_lbl("Brent spike decomposition — Hormuz scenario waterfall")
 if total_spike > 0:
     disruption_frac  = DISRUPTION_FRAC[hormuz["level"]]
     disrupted_mbpd   = HORMUZ_DAILY_MBPD * disruption_frac
@@ -272,17 +290,9 @@ if total_spike > 0:
         showlegend=False,
     )
     st.plotly_chart(fig_wf, use_container_width=True)
-    st.markdown(
-        f"<div class='muted'>Hormuz scenario: <b>{hormuz['level']}</b> · "
-        f"baseline ${baseline_brent:.0f} · total spike ${total_spike:+.0f}/bbl</div>",
-        unsafe_allow_html=True,
-    )
+    _desc(f"Hormuz scenario: {hormuz['level']} · baseline ${baseline_brent:.0f} · spike ${total_spike:+.0f}/bbl above Oct–Dec 2025 reference level")
 else:
-    st.markdown(
-        "<div class='muted'>Brent at or below Oct–Dec 2025 baseline — "
-        "waterfall meaningful only above reference level.</div>",
-        unsafe_allow_html=True,
-    )
+    _desc("Brent at or below Oct–Dec 2025 baseline — waterfall is meaningful only when spot is above the reference period average")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TRANSMISSION — KZ export supply chain
@@ -290,6 +300,7 @@ else:
 _section("TRANSMISSION")
 _note("transmission")
 
+_lbl("KZ export routes — volume by pipeline at current production")
 cpc_vol  = round(kz_prod * 0.65)
 btc_vol  = 200
 kcts_vol = 200
@@ -326,11 +337,7 @@ fig_sankey.update_layout(
     height=220, margin=dict(l=0, r=0, t=0, b=0),
 )
 st.plotly_chart(fig_sankey, use_container_width=True)
-st.markdown(
-    f"<div class='muted'>CPC ~{cpc_vol:,} kbd (65% of production) · "
-    f"BTC ~200 kbd · KCTS ~200 kbd</div>",
-    unsafe_allow_html=True,
-)
+_desc(f"CPC ~{cpc_vol:,} kbd (65% of production) → NW Europe + Med refiners · route concentration is the structural constraint")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CONSTRAINTS — CPC disruption timeline
@@ -338,6 +345,7 @@ st.markdown(
 _section("CONSTRAINTS")
 _note("constraints")
 
+_lbl("CPC throughput — 2019–2024 with Russian disruption events")
 _CPC_EVENTS = [
     {"date": "2022-03-22", "label": "Storm Novorossiysk",    "severity": "high"},
     {"date": "2022-04-06", "label": "Court suspension",      "severity": "high"},
@@ -395,10 +403,7 @@ fig_cpc.update_layout(
     xaxis=dict(gridcolor=GRID, tickformat="%Y", dtick="M12"),
 )
 st.plotly_chart(fig_cpc, use_container_width=True)
-st.markdown(
-    "<div class='muted'>Each disruption = Russian leverage over ~80% of KZ export capacity.</div>",
-    unsafe_allow_html=True,
-)
+_desc("Each disruption event = Russian leverage over ~80% of KZ export capacity via CPC · nameplate 67 MT/yr never sustained")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # POSITIONING — KZT fair value deviation
@@ -406,6 +411,7 @@ st.markdown(
 _section("POSITIONING")
 _note("positioning")
 
+_lbl("KZT residuals — actual minus OLS fair value (post-2022)")
 if post and len(post.get("dates", [])) > 1:
     sigma      = post["resid_std"]
     post_resid = post["residuals"]
@@ -446,19 +452,59 @@ if post and len(post.get("dates", [])) > 1:
     )
     st.plotly_chart(fig_resid, use_container_width=True)
     dev_dir = "above" if kzt_dev > 0 else "below"
-    st.markdown(
-        f"<div class='muted'>Fair value ~{kzt_fv:.0f} · spot {live_kzt:.0f} · "
-        f"{abs(kzt_dev):.0f} tenge {dev_dir} model · ±{sigma:.0f} 1σ band</div>",
-        unsafe_allow_html=True,
-    )
+    _desc(f"Fair value ~{kzt_fv:.0f} · spot {live_kzt:.0f} · {abs(kzt_dev):.0f} tenge {dev_dir} model · ±{sigma:.0f} 1σ band · positive = NBK holding tenge weaker than fundamentals")
 else:
-    st.markdown(
-        "<div class='muted'>Insufficient data for KZT model.</div>",
-        unsafe_allow_html=True,
-    )
+    _desc("Insufficient post-2022 data for KZT OLS model")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# RISKS — text only
+# RISKS — KZT scenario sensitivity
 # ══════════════════════════════════════════════════════════════════════════════
 _section("RISKS")
 _note("risks")
+
+_lbl("KZT fair value — Brent price sensitivity")
+if post:
+    _brent_scen  = [55, 60, 65, 70, 75, 80, 85, 90, 95]
+    _live_dxy    = prices.get("dxy", 103)
+    _live_rub    = prices.get("rub_per_usd", 90)
+    _kzt_scen    = [
+        post["alpha"]
+        + post["b_brent"] * b
+        + post["b_dxy"]   * _live_dxy
+        + post["b_rub"]   * _live_rub
+        for b in _brent_scen
+    ]
+    _bar_clrs = [
+        "#f87171" if b < 65 else "#f59e0b" if b < 75 else "#4ade80"
+        for b in _brent_scen
+    ]
+    fig_risk = go.Figure()
+    fig_risk.add_trace(go.Bar(
+        x=_brent_scen, y=_kzt_scen,
+        marker_color=_bar_clrs,
+        text=[f"{v:.0f}" for v in _kzt_scen],
+        textposition="outside",
+        textfont=dict(size=10, color="#c8ccd8"),
+    ))
+    fig_risk.add_vline(x=live_brent, line_dash="dash", line_color="#f59e0b", line_width=1.5)
+    fig_risk.add_annotation(
+        x=live_brent, y=max(_kzt_scen),
+        text=f"${live_brent:.0f} live",
+        showarrow=False, font=dict(size=10, color="#f59e0b"), yshift=22,
+    )
+    fig_risk.add_hline(y=live_kzt, line_dash="dot", line_color="#f87171", line_width=1)
+    fig_risk.add_annotation(
+        x=_brent_scen[-1], y=live_kzt,
+        text=f"spot {live_kzt:.0f}",
+        showarrow=False, font=dict(size=10, color="#f87171"), xanchor="right", yshift=10,
+    )
+    _kzt_sigma = post["resid_std"] if post else 0
+    fig_risk.update_layout(
+        **PLOT, height=260, showlegend=False,
+        margin=dict(l=0, r=0, t=30, b=0),
+        xaxis=dict(title="Brent (USD/bbl)", gridcolor=GRID, title_font=dict(size=11),
+                   tickmode="array", tickvals=_brent_scen),
+        yaxis=dict(title="KZT fair value", gridcolor=GRID, title_font=dict(size=11)),
+    )
+    st.plotly_chart(fig_risk, use_container_width=True)
+    _desc(f"Model fair value at each Brent scenario · DXY {_live_dxy:.0f} and RUB {_live_rub:.0f} held at live rates · ±{_kzt_sigma:.0f} tenge model error")
