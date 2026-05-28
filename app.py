@@ -18,11 +18,11 @@ import plotly.graph_objects as go
 from datetime import datetime, timezone
 
 from src.utils.css import inject_css, sparkline_svg, mc_card
-from src.nav import render_topnav
+from src.nav import render_topnav, render_status_bar
 from src.data.market import get_prices
 from src.metrics.hormuz import get_hormuz_status
 from src.data.imf import IMF_BREAKEVENS_USD, OPEC_QUOTAS_KBPD, URALS_DISCOUNT
-from src.metrics.calculations import urals_proxy, brent_wti_spread, cpc_utilization, fiscal_nowcast
+from src.metrics.calculations import urals_proxy, cpc_utilization, fiscal_nowcast
 from src.feeds.rss import get_articles
 
 st.set_page_config(
@@ -32,15 +32,6 @@ st.set_page_config(
 )
 inject_css()
 render_topnav("Overview")
-st.markdown("""
-<style>
-.padded { padding: 0; }
-.kpi-row { display: flex; gap: 24px; margin-top: 12px; flex-wrap: wrap; }
-.kpi-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.kpi-l { color: #555555; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; }
-.kpi-v { color: #e8eaf0; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
-</style>
-""", unsafe_allow_html=True)
 
 # ── Per-country definitions ────────────────────────────────────────────────────
 # Each entry: (region, accent_class, title, 2-sentence description, page_slug, btn_label, btn_class)
@@ -50,73 +41,73 @@ COUNTRY_META = {
             "The dominant Central Asian oil producer at ~2 mb/day. "
             "80% of exports route through the Russian-controlled CPC pipeline — "
             "Urals pricing and CPC congestion cap revenue relative to Brent.",
-            "Central_Asia_Panel", "Open Central Asia Panel", ""),
+            "Market_Data", "Open Market Data", ""),
     "UZB": ("ca", "ca", "Uzbekistan",
             "Uzbekistan is a net natural gas producer and the region's largest economy by population. "
             "Declining domestic gas reserves have shifted it toward energy imports, "
             "with growing dependence on Kazakh electricity and Turkmen gas transit.",
-            "Central_Asia_Panel", "Open Central Asia Panel", ""),
+            "Market_Data", "Open Market Data", ""),
     "TKM": ("ca", "ca", "Turkmenistan",
             "Holds the world's 4th-largest natural gas reserves, centred on the Galkynysh field. "
             "Exports are almost entirely directed to China via the Central Asia–China Gas Pipeline, "
             "giving Beijing substantial pricing leverage over Ashgabat.",
-            "Central_Asia_Panel", "Open Central Asia Panel", ""),
+            "Market_Data", "Open Market Data", ""),
     "KGZ": ("ca", "ca", "Kyrgyzstan",
             "A hydropower-dependent economy that generates ~90% of electricity from water. "
             "The country is a net energy importer for oil and gas, "
             "with fuel costs tied to Russian and Kazakh export prices.",
-            "Central_Asia_Panel", "Open Central Asia Panel", ""),
+            "Market_Data", "Open Market Data", ""),
     "TJK": ("ca", "ca", "Tajikistan",
             "Nearly 98% of electricity comes from hydropower — the highest share in Central Asia. "
             "The Rogun dam megaproject, when complete, is intended to make Tajikistan "
             "a regional power exporter, but construction has been repeatedly delayed.",
-            "Central_Asia_Panel", "Open Central Asia Panel", ""),
+            "Market_Data", "Open Market Data", ""),
     # Middle East
     "SAU": ("me", "me", "Saudi Arabia",
             "OPEC+ de-facto swing producer with ~12 mb/day capacity. "
             "Fiscal breakeven at $80/bbl means prolonged low oil prices "
             "require deficit spending or Vision 2030 privatisation revenues to compensate.",
-            "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
+            "Market_Data", "Open Market Data", "purple"),
     "ARE": ("me", "me", "UAE",
             "The most diversified Gulf economy, with non-oil GDP near 70%. "
             "OPEC+ quota compliance has been contested — the UAE won an upward "
             "baseline revision in 2021 after threatening to exit the agreement.",
-            "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
+            "Market_Data", "Open Market Data", "purple"),
     "IRQ": ("me", "me", "Iraq",
             "Iraq relies on oil for ~90% of government revenue at a $70/bbl breakeven. "
             "Chronic OPEC+ over-production — often 200-400 kbd above quota — "
             "has been a persistent source of cartel tension.",
-            "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
+            "Market_Data", "Open Market Data", "purple"),
     "KWT": ("me", "me", "Kuwait",
             "The most fiscally conservative Gulf state with a $55/bbl breakeven "
             "and sovereign wealth assets estimated at over $700B. "
             "Kuwait's large reserve buffer allows sustained low-price tolerance.",
-            "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
+            "Market_Data", "Open Market Data", "purple"),
     "IRN": ("me", "me", "Iran",
             "Sanctioned since 2018 under US maximum pressure policy, Iran still exports "
             "~1.5 mb/day informally, mostly to China at steep discounts. "
             "Tehran controls access to the Hormuz Strait — the chokepoint for ~20% of global oil trade.",
-            "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
+            "Market_Data", "Open Market Data", "purple"),
     "OMN": ("me", "me", "Oman",
             "A non-OPEC Gulf producer averaging ~1 mb/day with a $75/bbl fiscal breakeven. "
             "Oman serves as a key transit hub and maintains diplomatic ties with both "
             "Iran and the West, giving it a unique geopolitical buffer role.",
-            "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
+            "Market_Data", "Open Market Data", "purple"),
     "QAT": ("me", "me", "Qatar",
             "The world's largest LNG exporter, with the North Field expansion set to raise "
             "capacity from 77 to 126 MTPA by 2030. "
             "Qatar's energy revenues are almost entirely gas-linked, making it less exposed to Brent than its Gulf peers.",
-            "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
+            "Market_Data", "Open Market Data", "purple"),
     "BHR": ("me", "me", "Bahrain",
             "The smallest Gulf oil producer at ~200 kbd, with the highest fiscal breakeven "
             "in the region (~$95/bbl). Bahrain relies on Saudi pipeline transfers "
             "and downstream refining via Bapco to supplement declining reserves.",
-            "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
+            "Market_Data", "Open Market Data", "purple"),
     "YEM": ("me", "me", "Yemen",
             "Houthi forces have attacked Red Sea shipping since late 2023, disrupting "
             "Bab-el-Mandeb — a strait carrying ~8% of global oil and LNG to Asia-Europe. "
             "Tanker rerouting around Africa adds ~10 days and ~$1M per voyage.",
-            "Gulf_Quant_Panel", "Open Gulf Panel", "purple"),
+            "Market_Data", "Open Market Data", "purple"),
     # Transit / corridor countries
     "RUS": ("transit", "transit", "Russia",
             "Russia controls the CPC pipeline — KZ's primary export corridor to Novorossiysk "
@@ -147,7 +138,7 @@ COUNTRY_META = {
                   "The world's most critical oil chokepoint. ~17 mb/day of crude and products transit "
                   "through a 56km-wide strait — approximately 20% of global petroleum trade. "
                   "Iran controls the northern shore; closure triggers immediate Brent price shock.",
-                  "Hormuz_Decomposition", "Open Hormuz Decomp", "",
+                  "Thesis", "Open Thesis", "",
                   [("Daily transit", "~17 mb/day"), ("Global share", "~20% oil trade"), ("Risk", "Iran controls")]),
     "CP_BOSPHORUS": ("cp", "cp", "Bosphorus Strait",
                      "700m-wide, 30km-long strait bisecting Istanbul. ~3 mb/day of Urals and Caspian crude "
@@ -171,7 +162,7 @@ COUNTRY_META = {
                         "Black Sea port and terminus of the CPC pipeline — KZ's primary oil export outlet. "
                         "Russia operates the port and controls pipeline access. Exports ~1.3 mb/day of Kazakh crude. "
                         "CPC throughput restrictions are Russia's most direct lever over KZ energy revenues.",
-                        "Central_Asia_Panel", "Open Central Asia Panel", "",
+                        "Market_Data", "Open Market Data", "",
                         [("CPC capacity", "~1.3 mb/day"), ("Controlling state", "Russia"), ("Pipeline", "~1,510 km")]),
     "CP_CEYHAN": ("cp", "cp", "Ceyhan Terminal",
                   "Mediterranean export terminal on Turkey's southern coast. Terminus of the BTC pipeline "
@@ -183,44 +174,44 @@ COUNTRY_META = {
                     "UAE's east coast oil hub and terminus of the Abu Dhabi Crude Oil Pipeline (ADCOP). "
                     "Bypasses the Strait of Hormuz with 1.5 mb/day capacity. "
                     "Built as a Hormuz contingency — only 1.5 of the combined 6.5 mb/day Saudi+UAE bypass capacity.",
-                    "Gulf_Quant_Panel", "Open Gulf Panel", "purple",
+                    "Market_Data", "Open Market Data", "purple",
                     [("Bypass capacity", "1.5 mb/day"), ("Pipeline", "ADCOP / Habshan"), ("Country", "UAE")]),
     # Production fields
     "FLD_TENGIZ": ("field", "ca", "Tengiz Field",
                    "Kazakhstan's largest producing field, operated by Tengizchevroil (Chevron 50%, KMG 20%, "
                    "ExxonMobil 25%). Producing since 1993, ~700 kbd. The FGP expansion is expected to add "
                    "~260 kbd once debottlenecking completes.",
-                   "Central_Asia_Panel", "Open Central Asia Panel", "",
+                   "Market_Data", "Open Market Data", "",
                    [("Operator", "Tengizchevroil"), ("Production", "~700 kbd"), ("FGP expansion", "+260 kbd")]),
     "FLD_KASHAGAN": ("field", "ca", "Kashagan Field",
                      "World's 5th-largest oil field, discovered 2000, north Caspian. NCOC consortium "
                      "(Shell, ExxonMobil, TotalEnergies, CNPC, KMG). Complex sour gas (~19% H2S) drove "
                      "$50B+ capex. Now producing ~400 kbd after repeated startup delays.",
-                     "Central_Asia_Panel", "Open Central Asia Panel", "",
+                     "Market_Data", "Open Market Data", "",
                      [("Operator", "NCOC consortium"), ("Production", "~400 kbd"), ("H2S content", "~19%")]),
     "FLD_KARACHAGANAK": ("field", "ca", "Karachaganak",
                          "KZ's largest gas-condensate field, northwest Kazakhstan. Operated by KPO "
                          "(Shell 29.25%, Eni 29.25%, Chevron 18%, Lukoil 13.5%, KMG 10%). "
                          "Produces ~240 kbd oil equivalent plus ~14 bcm/yr gas.",
-                         "Central_Asia_Panel", "Open Central Asia Panel", "",
+                         "Market_Data", "Open Market Data", "",
                          [("Operator", "KPO (Shell/Eni)"), ("Production", "~240 kbd"), ("Gas", "~14 bcm/yr")]),
     "FLD_GHAWAR": ("field", "me", "Ghawar (Saudi Arabia)",
                    "World's largest conventional oil field, producing since 1951. Saudi Aramco's 2019 IPO "
                    "disclosed ~3.8 mb/day — underpinning Saudi swing producer capacity. "
                    "A sustained Ghawar production decline would fundamentally reshape global supply.",
-                   "Gulf_Quant_Panel", "Open Gulf Panel", "purple",
+                   "Market_Data", "Open Market Data", "purple",
                    [("Operator", "Saudi Aramco"), ("Production", "~3.8 mb/day"), ("Discovery", "1948")]),
     "FLD_RUMAILA": ("field", "me", "Rumaila (Iraq)",
                     "Iraq's largest field in southern Basra. Operated under a technical service contract "
                     "by BP (47.6%) and CNPC (46.4%). Production ~1.4 mb/day — critical to Iraq's fiscal "
                     "revenues given a ~$70/bbl breakeven.",
-                    "Gulf_Quant_Panel", "Open Gulf Panel", "purple",
+                    "Market_Data", "Open Market Data", "purple",
                     [("Operator", "BP / CNPC"), ("Production", "~1.4 mb/day"), ("Location", "Basra, S. Iraq")]),
     "FLD_ZAKUM": ("field", "me", "Zakum (UAE)",
                   "UAE's largest field complex (Upper/Lower Zakum), offshore Abu Dhabi. "
                   "Operated by ADNOC with Japan's JODCO and ExxonMobil. Production ~800 kbd, "
                   "with ADNOC targeting 1 mb/day by 2026.",
-                  "Gulf_Quant_Panel", "Open Gulf Panel", "purple",
+                  "Market_Data", "Open Market Data", "purple",
                   [("Operator", "ADNOC / JODCO"), ("Production", "~800 kbd"), ("Target", "1 mb/day 2026")]),
 }
 
@@ -279,7 +270,6 @@ production  = load_production_home()
 
 brent    = prices["brent_spot"]
 wti      = prices["wti_spot"]
-spread   = brent_wti_spread(brent, wti)
 kzt      = prices["kzt_per_usd"]
 urals    = urals_proxy(brent)
 kz_prod  = production["Kazakhstan"]["latest_kbpd"]
@@ -289,114 +279,12 @@ cpc      = cpc_utilization(kz_prod)
 
 hormuz = get_hormuz_status(articles)
 
-# ── Header (padded) ────────────────────────────────────────────────────────────
-st.markdown("<h1>Caspian-Gulf Oil Intelligence</h1>", unsafe_allow_html=True)
-st.markdown("<div class='pg-desc'>Caspian-Gulf energy risk monitor. Click a region on the globe to explore.</div>", unsafe_allow_html=True)
-
-# ── Summary Card ──────────────────────────────────────────────────────────────
-_hcol  = hormuz["color"]
-_hlvl  = hormuz["level"].lower()
-_disc  = URALS_DISCOUNT["post_2022"]
-_fbuf  = fiscal["buffer_bn"]
-_fbuf_lo  = max(0, round(_fbuf - 2))
-_fbuf_hi  = round(_fbuf + 2)
-_fbuf_cls  = "rgba(74,222,128,0.12)" if _fbuf >= 0 else "rgba(248,113,113,0.12)"
-_fbuf_tcls = "#4ade80" if _fbuf >= 0 else "#f87171"
-st.markdown(f"""
-<div style='background:#0a0a0a;border:1px solid #1a1a1a;padding:16px 20px;margin-bottom:12px'>
-<p style='font-size:9px;letter-spacing:0.1em;text-transform:uppercase;
-color:#555555;margin:0 0 10px'>About this terminal</p>
-<p style='font-size:13px;line-height:1.7;color:#a0a0a0;margin:0 0 10px'>
-Kazakhstan earns ~80% of its oil export revenue through a single Russian-controlled
-pipeline — the CPC corridor to Novorossiysk. When the Strait of Hormuz tightens,
-<b style='color:#e8eaf0'>Brent spikes and KZ fiscal revenue improves</b>, but structural limits cap the upside:
-CPC exports price off Urals (currently –${_disc:.0f}/bbl vs Brent), Russia has blocked pipeline
-expansion, and route concentration creates a geopolitical exposure that is
-<b style='color:#e8eaf0'>structural, not episodic.</b>
-</p>
-<p style='font-size:13px;line-height:1.7;color:#a0a0a0;margin:0'>
-This terminal tracks that transmission mechanism in real time — Gulf chokepoint risk,
-OPEC+ compliance, CPC throughput, KZT fair value, and the fiscal buffer between
-Kazakhstan and a revenue shortfall.
-</p>
-</div>
-""", unsafe_allow_html=True)
-
-# ── Market Metric Cards ────────────────────────────────────────────────────────
-sp_cls     = "neg" if spread < 0 else "pos"
-fiscal_cls = "pos" if fiscal["is_comfortable"] else "neg"
-_buf_lo    = max(0, round(fiscal["buffer_bn"] - 2))
-_buf_hi    = round(fiscal["buffer_bn"] + 2)
-_kzbe      = IMF_BREAKEVENS_USD["Kazakhstan"]
-_spark_b   = sparkline_svg(prices.get("spark_brent", []), w=60, h=24)
-_spark_w   = sparkline_svg(prices.get("spark_wti",   []), w=60, h=24)
-_spark_k   = sparkline_svg(prices.get("spark_kzt",   []), w=60, h=24)
-_hcard_col = hormuz["color"]
-
-def _spk(svg: str) -> str:
-    if not svg:
-        return ""
-    return (f'<div style="background:#050505;border:1px solid #1a1a1a;border-radius:0;'
-            f'padding:3px 6px;display:flex;align-items:center;flex-shrink:0;overflow:hidden">'
-            f'{svg}</div>')
-
-st.markdown(f"""
-<div style='margin:10px 0 14px'>
-<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px'>
-  <div class='mc'>
-    <div class='mc-l'>Brent Spot</div>
-    <div style='display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0'>
-      <div class='mc-v t1' style='min-width:0;flex:1'>${brent:.1f}</div>
-      {_spk(_spark_b)}
-    </div>
-    <div class='mc-d'>BZ=F · Live</div>
-  </div>
-  <div class='mc'>
-    <div class='mc-l'>WTI Spot</div>
-    <div style='display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0'>
-      <div class='mc-v t1' style='min-width:0;flex:1'>${wti:.1f}</div>
-      {_spk(_spark_w)}
-    </div>
-    <div class='mc-d'>CL=F · Live</div>
-  </div>
-  <div class='mc'>
-    <div class='mc-l'>KZT / USD</div>
-    <div style='display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0'>
-      <div class='mc-v t1' style='min-width:0;flex:1'>{kzt:.0f}</div>
-      {_spk(_spark_k)}
-    </div>
-    <div class='mc-d'>USDKZT=X · Live</div>
-  </div>
-  <div class='mc'>
-    <div class='mc-l'>WTI – Brent</div>
-    <div class='mc-v t2 {sp_cls}'>{spread:+.1f}</div>
-    <div class='mc-d'>USD/bbl spread</div>
-  </div>
-</div>
-<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:8px'>
-  <div class='mc'>
-    <div class='mc-l'>Urals Proxy</div>
-    <div class='mc-v t2'>~${urals:.0f}</div>
-    <div class='mc-d'>Brent –${_disc:.0f}/bbl post-sanctions</div>
-  </div>
-  <div class='mc'>
-    <div class='mc-l'>KZ Fiscal Buffer</div>
-    <div class='mc-v t2 {fiscal_cls}'>~${_buf_lo}–{_buf_hi}B/yr</div>
-    <div class='mc-d'>${_kzbe} breakeven · Brent ${brent:.0f}</div>
-  </div>
-  <div class='mc'>
-    <div class='mc-l'>Hormuz Status</div>
-    <div class='mc-v t2' style='color:{_hcard_col}'>{hormuz["level"]}</div>
-    <div class='mc-d'>{hormuz["count"]} signal{"s" if hormuz["count"]!=1 else ""} · last 7 days</div>
-  </div>
-  <div class='mc'>
-    <div class='mc-l'>CPC Pipeline</div>
-    <div class='mc-v t2 neg'>Russia-controlled</div>
-    <div class='mc-d'>Urals –${_disc:.0f}/bbl vs Brent · route risk</div>
-  </div>
-</div>
-</div>
-""", unsafe_allow_html=True)
+render_status_bar(
+    brent=brent, wti=wti, kzt=kzt,
+    hormuz_level=hormuz["level"],
+    hormuz_color=hormuz["color"],
+    ts=prices.get("fetched_at", ""),
+)
 
 # ── Globe ──────────────────────────────────────────────────────────────────────
 ca_isos = ["KAZ","UZB","TKM","KGZ","TJK"]
@@ -895,11 +783,23 @@ margin-bottom:10px'>{desc}</div>
 
 _render_globe()
 
+# ── Analyst Note ───────────────────────────────────────────────────────────────
+st.markdown(
+    "<div style='border-left:3px solid #39ff14;background:#0a0a0a;padding:16px;"
+    "margin:16px 0 12px'>"
+    "<div style='color:#555555;font-size:9px;text-transform:uppercase;"
+    "letter-spacing:0.1em;margin-bottom:6px'># ANALYST NOTE — update manually</div>"
+    "<div style='color:#a0a0a0;font-size:13px;font-family:\"IBM Plex Mono\",monospace;"
+    "line-height:1.6'>[placeholder — replace with your written view]</div>"
+    "</div>",
+    unsafe_allow_html=True,
+)
+
 # ── Latest Headlines ───────────────────────────────────────────────────────────
-st.markdown("<div class='sec' style='margin-top:20px'>Latest Intelligence</div>",
+st.markdown("<div class='sec' style='margin-top:4px'>Latest Intelligence</div>",
             unsafe_allow_html=True)
 
-top5 = articles[:5]
+top5 = articles[:3]
 if top5:
     rows = ""
     for a in top5:
@@ -914,7 +814,7 @@ if top5:
                  f"</div>")
     st.markdown(f"{rows}"
                 f"<div style='margin-top:8px'>"
-                f"<a href='News_Intelligence' style='font-size:11px;color:#39ff14'>"
+                f"<a href='/News_Intelligence' style='font-size:11px;color:#39ff14'>"
                 f"View all intelligence →</a></div>",
                 unsafe_allow_html=True)
 else:

@@ -1,5 +1,5 @@
 """
-pages/1_News_Intelligence.py
+pages/3_News_Intelligence.py
 Live RSS news feed + AI daily brief.
 """
 
@@ -14,7 +14,8 @@ import streamlit as st
 from datetime import datetime, timezone
 
 from src.utils.css import inject_css
-from src.nav import render_topnav
+from src.nav import render_topnav, render_status_bar
+from src.data.market import get_prices
 from src.feeds.rss import get_articles
 from src.feeds.ai_brief import generate_brief
 
@@ -23,10 +24,11 @@ st.set_page_config(page_title="News Intelligence", layout="wide",
 inject_css()
 render_topnav("News")
 
-st.markdown("<h1>News Intelligence</h1>", unsafe_allow_html=True)
-st.markdown("<div class='pg-desc'>Live feed filtered for Central Asia and Gulf energy events.</div>", unsafe_allow_html=True)
+# ── Loaders ─────────────────────────────────────────────────────────────────────
+@st.cache_data(ttl=60)
+def load_prices():
+    return get_prices()
 
-# ── Loaders ────────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=3600)
 def load_articles():
     return get_articles()
@@ -36,16 +38,28 @@ def load_brief(cache_key: str):
     arts, _ = load_articles()
     return generate_brief(arts)
 
+prices      = load_prices()
 articles, _ = load_articles()
 titles_key  = "|".join(a["title"][:30] for a in articles[:5]) if articles else "empty"
 
-# ── Daily Brief ────────────────────────────────────────────────────────────────
+render_status_bar(
+    brent=prices["brent_spot"],
+    wti=prices["wti_spot"],
+    kzt=prices["kzt_per_usd"],
+    ts=prices.get("fetched_at", ""),
+)
+
+st.markdown("<h1>News Intelligence</h1>", unsafe_allow_html=True)
+st.markdown("<div class='pg-desc'>Live feed filtered for Central Asia and Gulf energy events.</div>", unsafe_allow_html=True)
+
+# ── Daily Brief ─────────────────────────────────────────────────────────────────
 if os.getenv("GROQ_API_KEY"):
     brief = load_brief(titles_key)
     if brief.get("source") == "groq" and brief.get("brief_text"):
         st.markdown("<div class='sec'>Daily Brief</div>", unsafe_allow_html=True)
         st.markdown(
-            f"<div class='muted'>Generated {brief.get('generated_at', '—')} · refreshes every 6 hours</div>",
+            f"<div class='muted'>Generated {brief.get('generated_at', '—')} · "
+            f"refreshes every 6 hours</div>",
             unsafe_allow_html=True,
         )
         text = brief["brief_text"].strip()
@@ -73,7 +87,7 @@ if os.getenv("GROQ_API_KEY"):
                     unsafe_allow_html=True,
                 )
 
-# ── Headlines ──────────────────────────────────────────────────────────────────
+# ── Headlines ───────────────────────────────────────────────────────────────────
 st.markdown("<div class='sec'>Headlines</div>", unsafe_allow_html=True)
 st.markdown(
     f"<div class='muted' style='margin-bottom:8px'>"
