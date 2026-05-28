@@ -651,7 +651,6 @@ def _render_globe():
             showocean=True, oceancolor="#020810",
             showlakes=False, showrivers=False,
             showcountries=True, countrycolor="#1a1a1a", countrywidth=0.5,
-            showgraticule=True, graticulecolor="#0a1520",
             bgcolor="rgba(0,0,0,0)",
         ),
         paper_bgcolor="rgba(0,0,0,0)",
