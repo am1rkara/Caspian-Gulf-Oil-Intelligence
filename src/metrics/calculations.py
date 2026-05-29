@@ -30,11 +30,11 @@ def multivariate_kzt_ols(hist: dict) -> dict:
     rub_m   = _monthly(hist["rub_per_usd"], "rub_per_usd")
 
     df = pd.DataFrame({
-        "brent": brent_m.values,
-        "dxy":   dxy_m.values,
-        "rub":   rub_m.values,
-        "kzt":   kzt_m.values,
-    }, index=brent_m.index).dropna().sort_index()
+        "brent": brent_m,
+        "dxy":   dxy_m,
+        "rub":   rub_m,
+        "kzt":   kzt_m,
+    }).dropna().sort_index()
 
     if len(df) < 12:
         return {"error": "insufficient data", "data": df}
