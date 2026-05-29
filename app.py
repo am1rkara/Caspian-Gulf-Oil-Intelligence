@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os, html as _html
-import random as _rnd
 import time
 import streamlit.components.v1 as components
 import yfinance as yf
@@ -271,12 +270,8 @@ if time.time() - st.session_state.home_ts > 60:
 
 if "selected_iso" not in st.session_state:
     st.session_state.selected_iso = None
-if "_glob_lon" not in st.session_state:
-    st.session_state["_glob_lon"] = 55.0
-if "_glob_lat" not in st.session_state:
-    st.session_state["_glob_lat"] = 35.0
-if "_glob_scale" not in st.session_state:
-    st.session_state["_glob_scale"] = 1.0
+if "_glob_target" not in st.session_state:
+    st.session_state["_glob_target"] = {"lon": 55.0, "lat": 35.0, "scale": 1.0}
 
 prices      = load_prices()
 articles, _ = load_articles()
@@ -378,78 +373,139 @@ FOCUS_COORDS = {
     "FLD_RUMAILA":    (47.4, 30.4, 2.8), "FLD_ZAKUM":       (53.4, 24.8, 2.8),
 }
 
-# Pre-seeded star field for CSS box-shadow
-_rnd.seed(42)
-_STARS_SHADOW = ", ".join(
-    f"{_rnd.randint(-80, 820)}px {_rnd.randint(0, 580)}px "
-    f"{'#e8eaf0' if _rnd.random() > 0.78 else '#666666'}"
-    f"{_rnd.randint(12, 55):02x} "
-    f"{_rnd.randint(1, 2)}px"
-    for _ in range(150)
-)
-
-# Pipeline pulse animation — injected JS creates animated SVG dots on the Plotly globe
-_PULSE_JS = """
+# Combined JS: smooth zoom animation + pipeline pulse
+_GLOBE_JS = """
 <script>
 (function() {
-  var tries = 0;
-  var tmr = setInterval(function() {
-    tries++;
-    if (tries > 80) { clearInterval(tmr); return; }
-    var pds = parent.document.querySelectorAll('.js-plotly-plot');
-    if (!pds.length) return;
-    var gd = null;
-    pds.forEach(function(d) { if (d._fullLayout) gd = d; });
-    if (!gd) return;
-    clearInterval(tmr);
-    var geo = gd._fullLayout.geo;
-    if (!geo || !geo._subplot || !geo._subplot.projection) return;
-    var proj = geo._subplot.projection;
+  var DEFAULT = {lon:55, lat:35, scale:1.0};
+  var animating = false;
+  var pendingTarget = null;
+
+  function ease(t) { return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+  function lerp(a,b,t){ return a+(b-a)*t; }
+
+  function getGeoState(gd) {
+    var g = gd._fullLayout && gd._fullLayout.geo;
+    if (!g) return {lon:DEFAULT.lon, lat:DEFAULT.lat, scale:DEFAULT.scale};
+    var r = g.projection.rotation;
+    return {lon:r.lon||DEFAULT.lon, lat:r.lat||DEFAULT.lat, scale:g.projection.scale||DEFAULT.scale};
+  }
+
+  function animateTo(gd, tLon, tLat, tSc) {
+    if (animating) { pendingTarget={lon:tLon,lat:tLat,scale:tSc}; return; }
+    animating = true;
+    var cur = getGeoState(gd);
+    var isDefault = Math.abs(tLon-DEFAULT.lon)<0.5 && Math.abs(tLat-DEFAULT.lat)<0.5 && Math.abs(tSc-DEFAULT.scale)<0.05;
+    var phases = isDefault
+      ? [{f:cur, t:{lon:DEFAULT.lon,lat:DEFAULT.lat,scale:DEFAULT.scale}, dur:480}]
+      : [{f:cur, t:{lon:DEFAULT.lon,lat:DEFAULT.lat,scale:DEFAULT.scale}, dur:420},
+         {f:{lon:DEFAULT.lon,lat:DEFAULT.lat,scale:DEFAULT.scale}, t:{lon:tLon,lat:tLat,scale:tSc}, dur:620}];
+    var pi = 0;
+    function runPhase() {
+      if (pi >= phases.length) {
+        animating = false;
+        if (pendingTarget) { var pt=pendingTarget; pendingTarget=null; animateTo(gd,pt.lon,pt.lat,pt.scale); }
+        return;
+      }
+      var p = phases[pi++], start = performance.now();
+      function step(now) {
+        var t = Math.min((now-start)/p.dur, 1), e = ease(t);
+        Plotly.relayout(gd, {
+          'geo.projection.rotation.lon': lerp(p.f.lon,p.t.lon,e),
+          'geo.projection.rotation.lat': lerp(p.f.lat,p.t.lat,e),
+          'geo.projection.scale':        lerp(p.f.scale,p.t.scale,e)
+        });
+        if (t < 1) requestAnimationFrame(step); else runPhase();
+      }
+      requestAnimationFrame(step);
+    }
+    runPhase();
+  }
+
+  function getTranslate(gd) {
+    var el = gd.querySelector('.geo');
+    var tr = el ? (el.getAttribute('transform')||'') : '';
+    var i = tr.indexOf('translate(');
+    if (i < 0) return {dx:0,dy:0};
+    var s = tr.substring(i+10, tr.indexOf(')',i));
+    var p = s.split(',');
+    return {dx:parseFloat(p[0])||0, dy:parseFloat(p[1])||0};
+  }
+
+  function setupPulse(gd) {
     var svg = gd.querySelector('svg.main-svg');
     if (!svg) return;
-    var old = svg.querySelector('.pulse-overlay');
+    var old = svg.querySelector('.pipeline-pulse');
     if (old) old.remove();
-    var overlay = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    overlay.setAttribute('class', 'pulse-overlay');
+    var overlay = document.createElementNS('http://www.w3.org/2000/svg','g');
+    overlay.setAttribute('class','pipeline-pulse');
     svg.appendChild(overlay);
     var pipes = [
-      {p:[[53.1,45.4],[51.9,47.1],[48.2,46.5],[37.8,44.7]], c:'#ff3131', d:4000},
-      {p:[[49.9,40.4],[44.8,41.7],[35.9,36.8]],              c:'#39ff14', d:6000},
-      {p:[[51.9,47.1],[65.5,44.8],[69.6,42.3],[82.6,45.2],[87.6,43.8]], c:'#00b4d8', d:5000}
+      {p:[[53.1,45.4],[51.9,47.1],[48.2,46.5],[37.8,44.7]], c:'#ff3131', d:4200},
+      {p:[[49.9,40.4],[44.8,41.7],[35.9,36.8]],              c:'#39ff14', d:5800},
+      {p:[[51.9,47.1],[65.5,44.8],[69.6,42.3],[82.6,45.2],[87.6,43.8]], c:'#00b4d8', d:5100}
     ];
     var dots = pipes.map(function(p) {
-      var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      c.setAttribute('r', '4');
-      c.setAttribute('fill', p.c);
-      c.setAttribute('filter', 'drop-shadow(0 0 4px ' + p.c + ')');
-      overlay.appendChild(c);
-      return c;
+      var c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('r','3'); c.setAttribute('fill',p.c);
+      overlay.appendChild(c); return c;
     });
-    var t0 = pipes.map(function(_, i) { return performance.now() + i * 1500; });
+    var t0 = pipes.map(function(_,i){ return performance.now()+i*1400; });
     function frame(now) {
-      var geoEl = gd.querySelector('.geo');
-      var tr = geoEl ? (geoEl.getAttribute('transform') || '') : '';
-      var m = tr.match(/translate[(]([^,]+),([^)]+)[)]/i);
-      var dx = m ? parseFloat(m[1]) : 0, dy = m ? parseFloat(m[2]) : 0;
-      pipes.forEach(function(pipe, i) {
-        var el = (now - t0[i]) % pipe.d;
-        if (el < 0) { dots[i].setAttribute('opacity', '0'); return; }
-        var t = el / pipe.d, n = pipe.p.length - 1;
-        var s = Math.min(Math.floor(t * n), n - 1), st = t * n - s;
-        var lon = pipe.p[s][0] + (pipe.p[s+1][0] - pipe.p[s][0]) * st;
-        var lat = pipe.p[s][1] + (pipe.p[s+1][1] - pipe.p[s][1]) * st;
+      var geo2 = gd._fullLayout && gd._fullLayout.geo;
+      if (!geo2 || !geo2._subplot || !geo2._subplot.projection) { requestAnimationFrame(frame); return; }
+      var proj = geo2._subplot.projection;
+      var off = getTranslate(gd);
+      pipes.forEach(function(pipe,i) {
+        if (animating) { dots[i].setAttribute('opacity','0'); return; }
+        var el = (now-t0[i])%pipe.d;
+        if (el < 0) { dots[i].setAttribute('opacity','0'); return; }
+        var t=el/pipe.d, n=pipe.p.length-1;
+        var s=Math.min(Math.floor(t*n),n-1), st=t*n-s;
+        var lon=pipe.p[s][0]+(pipe.p[s+1][0]-pipe.p[s][0])*st;
+        var lat=pipe.p[s][1]+(pipe.p[s+1][1]-pipe.p[s][1])*st;
         try {
-          var pt = proj([lon, lat]);
+          var pt=proj([lon,lat]);
           if (pt && !isNaN(pt[0]) && !isNaN(pt[1])) {
-            dots[i].setAttribute('cx', pt[0] + dx);
-            dots[i].setAttribute('cy', pt[1] + dy);
-            dots[i].setAttribute('opacity', '0.9');
-          } else { dots[i].setAttribute('opacity', '0'); }
-        } catch(e) { dots[i].setAttribute('opacity', '0'); }
+            dots[i].setAttribute('cx',String(pt[0]+off.dx));
+            dots[i].setAttribute('cy',String(pt[1]+off.dy));
+            dots[i].setAttribute('opacity','0.8');
+          } else { dots[i].setAttribute('opacity','0'); }
+        } catch(e) { dots[i].setAttribute('opacity','0'); }
       });
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
+  }
+
+  function readTarget() {
+    var el = parent.document.getElementById('globe-target');
+    if (!el) return null;
+    var lon=parseFloat(el.getAttribute('data-lon')),
+        lat=parseFloat(el.getAttribute('data-lat')),
+        sc =parseFloat(el.getAttribute('data-scale'));
+    return (isNaN(lon)||isNaN(lat)||isNaN(sc)) ? null : {lon:lon,lat:lat,scale:sc};
+  }
+
+  var tries=0, tmr=setInterval(function() {
+    if (++tries > 80) { clearInterval(tmr); return; }
+    var pds=parent.document.querySelectorAll('.js-plotly-plot');
+    if (!pds.length) return;
+    var gd=null; pds.forEach(function(d){ if(d._fullLayout) gd=d; });
+    if (!gd) return;
+    clearInterval(tmr);
+    setupPulse(gd);
+    var lastKey='';
+    var obs = new MutationObserver(function() {
+      var t=readTarget(); if (!t) return;
+      var k=t.lon+','+t.lat+','+t.scale;
+      if (k===lastKey) return;
+      lastKey=k;
+      var isDefault=Math.abs(t.lon-DEFAULT.lon)<0.5&&Math.abs(t.lat-DEFAULT.lat)<0.5&&Math.abs(t.scale-DEFAULT.scale)<0.05;
+      if (!isDefault) animateTo(gd,t.lon,t.lat,t.scale);
+    });
+    obs.observe(parent.document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-lon','data-lat','data-scale']});
+    var init=readTarget(); if (init) lastKey=init.lon+','+init.lat+','+init.scale;
   }, 300);
 })();
 </script>
@@ -471,10 +527,6 @@ def _render_globe():
     _cpc    = d.get("cpc",      {"utilization_pct": 0})
     _h      = d.get("hormuz",   {"level": "—", "color": "#555555",
                                  "count": 0, "articles": []})
-
-    _glob_lon   = float(st.session_state.get("_glob_lon",   55.0))
-    _glob_lat   = float(st.session_state.get("_glob_lat",   35.0))
-    _glob_scale = float(st.session_state.get("_glob_scale",  1.0))
 
     # Dynamic per-chokepoint colors (Hormuz follows live status)
     _hormuz_color = _h.get("color", "#ff3131")
@@ -605,29 +657,23 @@ def _render_globe():
         hoverinfo="text", showlegend=True,
     ))
 
-    # Chokepoints — 3 concentric ring traces for pulsing halo effect
+    # Chokepoints — inner solid dot + subtle outer ring
     fig.add_trace(go.Scattergeo(
         lat=_cpkt_lat, lon=_cpkt_lon,
         mode="markers+text",
-        marker=dict(symbol="circle", size=8, color=_cp_colors, opacity=0.9,
+        marker=dict(symbol="circle", size=6, color=_cp_colors, opacity=0.95,
                     line=dict(color=_cp_colors, width=1)),
         text=_cpkt_lbl, textposition="top right",
-        textfont=dict(size=8, color="#ff3131", family="IBM Plex Mono, monospace"),
+        textfont=dict(size=8, color="#888888", family="IBM Plex Mono, monospace"),
         customdata=_cpkt_ids,
         hovertext=_cpkt_tip, hoverinfo="text",
         showlegend=False, name="Chokepoints",
     ))
     fig.add_trace(go.Scattergeo(
         lat=_cpkt_lat, lon=_cpkt_lon, mode="markers",
-        marker=dict(symbol="circle-open", size=14, color=_cp_colors, opacity=0.4,
-                    line=dict(color=_cp_colors, width=1.5)),
-        hoverinfo="skip", showlegend=False, name="cp_mid",
-    ))
-    fig.add_trace(go.Scattergeo(
-        lat=_cpkt_lat, lon=_cpkt_lon, mode="markers",
-        marker=dict(symbol="circle-open", size=20, color=_cp_colors, opacity=0.15,
+        marker=dict(symbol="circle-open", size=13, color=_cp_colors, opacity=0.25,
                     line=dict(color=_cp_colors, width=1)),
-        hoverinfo="skip", showlegend=False, name="cp_outer",
+        hoverinfo="skip", showlegend=False, name="cp_ring",
     ))
 
     # Production fields
@@ -643,16 +689,16 @@ def _render_globe():
     fig.update_layout(
         geo=dict(
             projection_type="orthographic",
-            projection_rotation=dict(lon=_glob_lon, lat=_glob_lat, roll=0),
-            projection_scale=_glob_scale,
+            projection_rotation=dict(lon=55, lat=35, roll=0),
             showframe=False,
-            showcoastlines=True, coastlinecolor="#1a1a1a", coastlinewidth=0.5,
-            showland=True, landcolor="#0d0d0d",
-            showocean=True, oceancolor="#020810",
+            showcoastlines=True, coastlinecolor="#1e3550", coastlinewidth=0.8,
+            showland=True, landcolor="#111827",
+            showocean=True, oceancolor="#060d18",
             showlakes=False, showrivers=False,
-            showcountries=True, countrycolor="#1a1a1a", countrywidth=0.5,
+            showcountries=True, countrycolor="#1a2d47", countrywidth=0.5,
             bgcolor="rgba(0,0,0,0)",
         ),
+        uirevision="globe",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=0, r=0, t=0, b=0),
@@ -733,20 +779,12 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
 
     # ── Globe ──────────────────────────────────────────────────────────────────
     with globe_col:
-        # Star field + atmosphere glow
+        # Hidden target div — JS observes attribute changes to trigger zoom animation
+        _tgt = st.session_state.get("_glob_target", {"lon": 55.0, "lat": 35.0, "scale": 1.0})
+        _tlon, _tlat, _tsc = _tgt["lon"], _tgt["lat"], _tgt["scale"]
         st.markdown(
-            f"<style>"
-            f"@keyframes pulse-glow{{0%,100%{{opacity:0.5}}50%{{opacity:1}}}}"
-            f".globe-atmo{{pointer-events:none;position:absolute;top:50%;left:50%;"
-            f"transform:translate(-50%,-50%);width:500px;height:500px;border-radius:50%;"
-            f"box-shadow:0 0 80px 20px rgba(0,180,216,0.07),0 0 160px 40px rgba(57,255,20,0.03);"
-            f"animation:pulse-glow 5s ease-in-out infinite;z-index:0}}"
-            f".star-bg{{pointer-events:none;position:absolute;top:0;left:0;right:0;bottom:0;z-index:0}}"
-            f".star-bg::before{{content:'';position:absolute;width:1px;height:1px;"
-            f"border-radius:50%;background:transparent;box-shadow:{_STARS_SHADOW}}}"
-            f"</style>"
-            f"<div class='star-bg'></div>"
-            f"<div class='globe-atmo'></div>",
+            f"<div id='globe-target' style='display:none' "
+            f"data-lon='{_tlon}' data-lat='{_tlat}' data-scale='{_tsc}'></div>",
             unsafe_allow_html=True,
         )
 
@@ -760,8 +798,8 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
                     ],
                 })
 
-        # Pipeline pulse animation
-        components.html(_PULSE_JS, height=0)
+        # Zoom animation + pipeline pulse
+        components.html(_GLOBE_JS, height=0)
 
         st.markdown(
             "<div style='color:#555555;font-size:10px;margin-top:4px;padding-left:2px'>"
@@ -777,7 +815,7 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
             unsafe_allow_html=True,
         )
 
-        # Parse click — update selected_iso and globe rotation
+        # Parse click — update selected_iso and zoom target for JS animation
         if event and event.selection and event.selection.points:
             pt  = event.selection.points[0]
             _cd = pt.get("customdata")
@@ -788,10 +826,8 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
                 if iso in COUNTRY_META:
                     st.session_state.selected_iso = iso
                 if iso in FOCUS_COORDS:
-                    _flon, _flat, _fscale = FOCUS_COORDS[iso]
-                    st.session_state["_glob_lon"]   = _flon
-                    st.session_state["_glob_lat"]   = _flat
-                    st.session_state["_glob_scale"] = _fscale
+                    flon, flat, fscale = FOCUS_COORDS[iso]
+                    st.session_state["_glob_target"] = {"lon": flon, "lat": flat, "scale": fscale}
 
     # ── Right column: infrastructure legend (top) + country info (bottom) ───────
     with info_col:
