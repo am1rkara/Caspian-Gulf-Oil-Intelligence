@@ -270,8 +270,6 @@ if time.time() - st.session_state.home_ts > 60:
 
 if "selected_iso" not in st.session_state:
     st.session_state.selected_iso = None
-if "_glob_target" not in st.session_state:
-    st.session_state["_glob_target"] = {"lon": 55.0, "lat": 35.0, "scale": 1.0}
 
 prices      = load_prices()
 articles, _ = load_articles()
@@ -355,158 +353,93 @@ _fld_tip = [
 
 GLOBE_H = 580
 
-# Focus coordinates for click-to-zoom: (lon, lat, projection_scale)
-FOCUS_COORDS = {
-    "KAZ": (67.0, 48.0, 1.8),  "UZB": (63.0, 41.0, 2.0),  "TKM": (59.0, 39.0, 2.0),
-    "KGZ": (74.0, 42.0, 2.2),  "TJK": (71.0, 38.0, 2.2),
-    "SAU": (45.0, 24.0, 1.8),  "ARE": (54.0, 24.0, 2.2),  "IRQ": (44.0, 33.0, 2.2),
-    "KWT": (47.0, 29.0, 2.5),  "IRN": (53.0, 32.0, 1.8),  "OMN": (57.0, 22.0, 2.0),
-    "QAT": (51.0, 25.0, 2.5),  "BHR": (50.0, 26.0, 2.8),  "YEM": (48.0, 16.0, 2.0),
-    "RUS": (60.0, 55.0, 1.2),  "AZE": (47.0, 40.0, 2.2),  "TUR": (35.0, 39.0, 1.8),
-    "CHN": (104.0, 35.0, 1.2),
-    "CP_HORMUZ":      (56.5, 26.5, 3.0), "CP_BOSPHORUS":    (29.0, 41.0, 3.0),
-    "CP_SUEZ":        (32.5, 30.5, 2.5), "CP_BABELMANDEB":  (43.3, 12.6, 3.0),
-    "CP_NOVOROSSIYSK":(37.8, 44.7, 2.8), "CP_CEYHAN":       (35.9, 36.8, 2.8),
-    "CP_FUJAIRAH":    (56.3, 25.1, 3.0),
-    "FLD_TENGIZ":     (53.1, 45.4, 2.8), "FLD_KASHAGAN":    (51.2, 45.4, 2.8),
-    "FLD_KARACHAGANAK":(53.6, 50.4, 2.8),"FLD_GHAWAR":      (49.2, 24.8, 2.8),
-    "FLD_RUMAILA":    (47.4, 30.4, 2.8), "FLD_ZAKUM":       (53.4, 24.8, 2.8),
-}
-
-# Combined JS: smooth zoom animation + pipeline pulse
+# Glow-ripple JS: expanding rings on chokepoints and production fields
 _GLOBE_JS = """
 <script>
 (function() {
-  var DEFAULT = {lon:55, lat:35, scale:1.0};
-  var animating = false;
-  var pendingTarget = null;
+  var CP_PTS = [
+    [56.5,26.5,'#ff4444'],[29.0,41.0,'#ff4444'],[32.5,30.5,'#ff4444'],
+    [43.3,12.6,'#ff4444'],[37.8,44.7,'#ff4444'],[35.9,36.8,'#ff4444'],[56.3,25.1,'#ff4444']
+  ];
+  var FLD_PTS = [
+    [53.1,45.4,'#39ff14'],[51.2,45.4,'#39ff14'],[53.6,50.4,'#39ff14'],
+    [49.2,24.8,'#39ff14'],[47.4,30.4,'#39ff14'],[53.4,24.8,'#39ff14']
+  ];
+  var ALL_PTS = CP_PTS.concat(FLD_PTS);
+  var PERIOD = 2400;
+  var N_RINGS = 2;
+  var running = false;
 
-  function ease(t) { return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
-  function lerp(a,b,t){ return a+(b-a)*t; }
+  var tries=0, tmr=setInterval(function() {
+    if(++tries>80){clearInterval(tmr);return;}
+    var pds=parent.document.querySelectorAll('.js-plotly-plot');
+    if(!pds.length)return;
+    var gd=null; pds.forEach(function(d){if(d._fullLayout)gd=d;});
+    if(!gd)return;
+    clearInterval(tmr);
+    setup(gd);
+  },300);
 
-  function getGeoState(gd) {
-    var g = gd._fullLayout && gd._fullLayout.geo;
-    if (!g) return {lon:DEFAULT.lon, lat:DEFAULT.lat, scale:DEFAULT.scale};
-    var r = g.projection.rotation;
-    return {lon:r.lon||DEFAULT.lon, lat:r.lat||DEFAULT.lat, scale:g.projection.scale||DEFAULT.scale};
+  function getOff(gd){
+    var el=gd.querySelector('.geo');
+    if(!el)return{dx:0,dy:0};
+    var tr=el.getAttribute('transform')||'';
+    var i=tr.indexOf('translate(');
+    if(i<0)return{dx:0,dy:0};
+    var s=tr.substring(i+10,tr.indexOf(')',i));
+    var p=s.split(',');
+    return{dx:parseFloat(p[0])||0,dy:parseFloat(p[1])||0};
   }
 
-  function animateTo(gd, tLon, tLat, tSc) {
-    if (animating) { pendingTarget={lon:tLon,lat:tLat,scale:tSc}; return; }
-    animating = true;
-    var cur = getGeoState(gd);
-    var isDefault = Math.abs(tLon-DEFAULT.lon)<0.5 && Math.abs(tLat-DEFAULT.lat)<0.5 && Math.abs(tSc-DEFAULT.scale)<0.05;
-    var phases = isDefault
-      ? [{f:cur, t:{lon:DEFAULT.lon,lat:DEFAULT.lat,scale:DEFAULT.scale}, dur:480}]
-      : [{f:cur, t:{lon:DEFAULT.lon,lat:DEFAULT.lat,scale:DEFAULT.scale}, dur:420},
-         {f:{lon:DEFAULT.lon,lat:DEFAULT.lat,scale:DEFAULT.scale}, t:{lon:tLon,lat:tLat,scale:tSc}, dur:620}];
-    var pi = 0;
-    function runPhase() {
-      if (pi >= phases.length) {
-        animating = false;
-        if (pendingTarget) { var pt=pendingTarget; pendingTarget=null; animateTo(gd,pt.lon,pt.lat,pt.scale); }
-        return;
+  function setup(gd){
+    if(running)return;
+    running=true;
+    var svg=gd.querySelector('svg.main-svg');
+    if(!svg){running=false;return;}
+    var old=svg.querySelector('.glow-rings');
+    if(old)old.remove();
+    var g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','glow-rings');
+    svg.appendChild(g);
+
+    var rings=ALL_PTS.map(function(pt,pi){
+      var isField=pi>=CP_PTS.length;
+      var ptRings=[];
+      for(var i=0;i<N_RINGS;i++){
+        var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+        c.setAttribute('fill','none');
+        c.setAttribute('stroke',pt[2]);
+        c.setAttribute('stroke-width','1');
+        c.setAttribute('opacity','0');
+        g.appendChild(c);
+        ptRings.push({el:c,offset:i*(PERIOD/N_RINGS)});
       }
-      var p = phases[pi++], start = performance.now();
-      function step(now) {
-        var t = Math.min((now-start)/p.dur, 1), e = ease(t);
-        Plotly.relayout(gd, {
-          'geo.projection.rotation.lon': lerp(p.f.lon,p.t.lon,e),
-          'geo.projection.rotation.lat': lerp(p.f.lat,p.t.lat,e),
-          'geo.projection.scale':        lerp(p.f.scale,p.t.scale,e)
-        });
-        if (t < 1) requestAnimationFrame(step); else runPhase();
-      }
-      requestAnimationFrame(step);
-    }
-    runPhase();
-  }
-
-  function getTranslate(gd) {
-    var el = gd.querySelector('.geo');
-    var tr = el ? (el.getAttribute('transform')||'') : '';
-    var i = tr.indexOf('translate(');
-    if (i < 0) return {dx:0,dy:0};
-    var s = tr.substring(i+10, tr.indexOf(')',i));
-    var p = s.split(',');
-    return {dx:parseFloat(p[0])||0, dy:parseFloat(p[1])||0};
-  }
-
-  function setupPulse(gd) {
-    var svg = gd.querySelector('svg.main-svg');
-    if (!svg) return;
-    var old = svg.querySelector('.pipeline-pulse');
-    if (old) old.remove();
-    var overlay = document.createElementNS('http://www.w3.org/2000/svg','g');
-    overlay.setAttribute('class','pipeline-pulse');
-    svg.appendChild(overlay);
-    var pipes = [
-      {p:[[53.1,45.4],[51.9,47.1],[48.2,46.5],[37.8,44.7]], c:'#ff3131', d:4200},
-      {p:[[49.9,40.4],[44.8,41.7],[35.9,36.8]],              c:'#39ff14', d:5800},
-      {p:[[51.9,47.1],[65.5,44.8],[69.6,42.3],[82.6,45.2],[87.6,43.8]], c:'#00b4d8', d:5100}
-    ];
-    var dots = pipes.map(function(p) {
-      var c = document.createElementNS('http://www.w3.org/2000/svg','circle');
-      c.setAttribute('r','3'); c.setAttribute('fill',p.c);
-      overlay.appendChild(c); return c;
+      return{lon:pt[0],lat:pt[1],rings:ptRings,maxR:isField?11:15};
     });
-    var t0 = pipes.map(function(_,i){ return performance.now()+i*1400; });
-    function frame(now) {
-      var geo2 = gd._fullLayout && gd._fullLayout.geo;
-      if (!geo2 || !geo2._subplot || !geo2._subplot.projection) { requestAnimationFrame(frame); return; }
-      var proj = geo2._subplot.projection;
-      var off = getTranslate(gd);
-      pipes.forEach(function(pipe,i) {
-        if (animating) { dots[i].setAttribute('opacity','0'); return; }
-        var el = (now-t0[i])%pipe.d;
-        if (el < 0) { dots[i].setAttribute('opacity','0'); return; }
-        var t=el/pipe.d, n=pipe.p.length-1;
-        var s=Math.min(Math.floor(t*n),n-1), st=t*n-s;
-        var lon=pipe.p[s][0]+(pipe.p[s+1][0]-pipe.p[s][0])*st;
-        var lat=pipe.p[s][1]+(pipe.p[s+1][1]-pipe.p[s][1])*st;
-        try {
-          var pt=proj([lon,lat]);
-          if (pt && !isNaN(pt[0]) && !isNaN(pt[1])) {
-            dots[i].setAttribute('cx',String(pt[0]+off.dx));
-            dots[i].setAttribute('cy',String(pt[1]+off.dy));
-            dots[i].setAttribute('opacity','0.8');
-          } else { dots[i].setAttribute('opacity','0'); }
-        } catch(e) { dots[i].setAttribute('opacity','0'); }
+
+    function frame(now){
+      if(!svg.contains(g)){running=false;setup(gd);return;}
+      var geo=gd._fullLayout&&gd._fullLayout.geo;
+      if(!geo||!geo._subplot||!geo._subplot.projection){requestAnimationFrame(frame);return;}
+      var proj=geo._subplot.projection;
+      var off=getOff(gd);
+      rings.forEach(function(pt){
+        var px=null;
+        try{px=proj([pt.lon,pt.lat]);}catch(e){}
+        var vis=px&&!isNaN(px[0])&&!isNaN(px[1]);
+        pt.rings.forEach(function(ring){
+          if(!vis){ring.el.setAttribute('opacity','0');return;}
+          ring.el.setAttribute('cx',String(px[0]+off.dx));
+          ring.el.setAttribute('cy',String(px[1]+off.dy));
+          var t=((now+ring.offset)%PERIOD)/PERIOD;
+          ring.el.setAttribute('r',String(t*pt.maxR));
+          ring.el.setAttribute('opacity',String((1-t)*0.7));
+        });
       });
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
   }
-
-  function readTarget() {
-    var el = parent.document.getElementById('globe-target');
-    if (!el) return null;
-    var lon=parseFloat(el.getAttribute('data-lon')),
-        lat=parseFloat(el.getAttribute('data-lat')),
-        sc =parseFloat(el.getAttribute('data-scale'));
-    return (isNaN(lon)||isNaN(lat)||isNaN(sc)) ? null : {lon:lon,lat:lat,scale:sc};
-  }
-
-  var tries=0, tmr=setInterval(function() {
-    if (++tries > 80) { clearInterval(tmr); return; }
-    var pds=parent.document.querySelectorAll('.js-plotly-plot');
-    if (!pds.length) return;
-    var gd=null; pds.forEach(function(d){ if(d._fullLayout) gd=d; });
-    if (!gd) return;
-    clearInterval(tmr);
-    setupPulse(gd);
-    var lastKey='';
-    var obs = new MutationObserver(function() {
-      var t=readTarget(); if (!t) return;
-      var k=t.lon+','+t.lat+','+t.scale;
-      if (k===lastKey) return;
-      lastKey=k;
-      var isDefault=Math.abs(t.lon-DEFAULT.lon)<0.5&&Math.abs(t.lat-DEFAULT.lat)<0.5&&Math.abs(t.scale-DEFAULT.scale)<0.05;
-      if (!isDefault) animateTo(gd,t.lon,t.lat,t.scale);
-    });
-    obs.observe(parent.document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-lon','data-lat','data-scale']});
-    var init=readTarget(); if (init) lastKey=init.lon+','+init.lat+','+init.scale;
-  }, 300);
 })();
 </script>
 """
@@ -676,14 +609,20 @@ def _render_globe():
         hoverinfo="skip", showlegend=False, name="cp_ring",
     ))
 
-    # Production fields
+    # Production fields — solid dot + subtle outer ring
     fig.add_trace(go.Scattergeo(
         lat=_fld_lat, lon=_fld_lon, mode="markers",
-        marker=dict(symbol="circle", size=8, color="#39ff14", opacity=0.8,
-                    line=dict(color="#39ff14", width=1)),
+        marker=dict(symbol="circle", size=7, color="#39ff14", opacity=0.9,
+                    line=dict(color="#39ff14", width=1.2)),
         customdata=_fld_ids,
         hovertext=_fld_tip, hoverinfo="text",
         showlegend=False, name="Oil fields",
+    ))
+    fig.add_trace(go.Scattergeo(
+        lat=_fld_lat, lon=_fld_lon, mode="markers",
+        marker=dict(symbol="circle-open", size=13, color="#39ff14", opacity=0.2,
+                    line=dict(color="#39ff14", width=1)),
+        hoverinfo="skip", showlegend=False, name="fld_ring",
     ))
 
     fig.update_layout(
@@ -691,11 +630,11 @@ def _render_globe():
             projection_type="orthographic",
             projection_rotation=dict(lon=55, lat=35, roll=0),
             showframe=False,
-            showcoastlines=True, coastlinecolor="#1e3550", coastlinewidth=0.8,
-            showland=True, landcolor="#111827",
-            showocean=True, oceancolor="#060d18",
+            showcoastlines=True, coastlinecolor="#1e4870", coastlinewidth=0.9,
+            showland=True, landcolor="#0f1e2e",
+            showocean=True, oceancolor="#050d1a",
             showlakes=False, showrivers=False,
-            showcountries=True, countrycolor="#1a2d47", countrywidth=0.5,
+            showcountries=True, countrycolor="#152d48", countrywidth=0.4,
             bgcolor="rgba(0,0,0,0)",
         ),
         uirevision="globe",
@@ -779,15 +718,6 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
 
     # ── Globe ──────────────────────────────────────────────────────────────────
     with globe_col:
-        # Hidden target div — JS observes attribute changes to trigger zoom animation
-        _tgt = st.session_state.get("_glob_target", {"lon": 55.0, "lat": 35.0, "scale": 1.0})
-        _tlon, _tlat, _tsc = _tgt["lon"], _tgt["lat"], _tgt["scale"]
-        st.markdown(
-            f"<div id='globe-target' style='display:none' "
-            f"data-lon='{_tlon}' data-lat='{_tlat}' data-scale='{_tsc}'></div>",
-            unsafe_allow_html=True,
-        )
-
         event = st.plotly_chart(fig, key="energy_map", on_select="rerun",
                                 use_container_width=True,
                                 config={
@@ -798,7 +728,7 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
                     ],
                 })
 
-        # Zoom animation + pipeline pulse
+        # Glow ripple animation for chokepoints and fields
         components.html(_GLOBE_JS, height=0)
 
         st.markdown(
@@ -810,24 +740,19 @@ letter-spacing:0.1em;margin-bottom:6px'>Recent Signals</div>
             "<span style='color:#a0a0a0'>■</span> China &nbsp;|&nbsp; "
             "<span style='color:#39ff14'>●</span> Fields &nbsp;|&nbsp; "
             "<span style='color:#ff3131'>●</span> Chokepoints"
-            "<span style='color:#3a3a3a'> &nbsp;·&nbsp; click to focus globe</span>"
             "</div>",
             unsafe_allow_html=True,
         )
 
-        # Parse click — update selected_iso and zoom target for JS animation
+        # Parse click — update selected_iso for info panel
         if event and event.selection and event.selection.points:
             pt  = event.selection.points[0]
             _cd = pt.get("customdata")
             iso = (pt.get("location") or
                    (_cd if isinstance(_cd, str) else
                     (_cd[0] if isinstance(_cd, list) and _cd and isinstance(_cd[0], str) else None)))
-            if iso:
-                if iso in COUNTRY_META:
-                    st.session_state.selected_iso = iso
-                if iso in FOCUS_COORDS:
-                    flon, flat, fscale = FOCUS_COORDS[iso]
-                    st.session_state["_glob_target"] = {"lon": flon, "lat": flat, "scale": fscale}
+            if iso and iso in COUNTRY_META:
+                st.session_state.selected_iso = iso
 
     # ── Right column: infrastructure legend (top) + country info (bottom) ───────
     with info_col:
